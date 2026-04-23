@@ -1,0 +1,5 @@
+# Ignorar todo lo generado por Visual Studio
+.vs/
+
+[Bb]in/
+[Oo]bj/

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Sismeing.API/Sismeing.API.csproj" />
+  <Project Path="Sismeing.Domain/Sismeing.Domain.csproj" />
+  <Project Path="Sismeing.Infrestructura/Sismeing.Infrestructura.csproj" />
+</Solution>
