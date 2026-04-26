@@ -127,4 +127,28 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// ── Verificación de conexión a la Base de Datos ─────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<SupaBaseDBcontext>();
+    try
+    {
+        dbContext.Database.OpenConnection();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("\n=======================================================");
+        Console.WriteLine("✅ CONEXIÓN A LA BASE DE DATOS SUPABASE EXITOSA!");
+        Console.WriteLine("=======================================================\n");
+        Console.ResetColor();
+        dbContext.Database.CloseConnection();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("\n=======================================================");
+        Console.WriteLine($"❌ EXCEPCIÓN CONECTANDO A LA BD: {ex.Message}");
+        Console.WriteLine("=======================================================\n");
+        Console.ResetColor();
+    }
+}
+
 app.Run();

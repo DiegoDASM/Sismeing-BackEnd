@@ -1,0 +1,12 @@
+@model Sismeing.Domain.Models.Emails.RecoverAccountModel
+<table width="100%" style="font-family: sans-serif;">
+    <tr>
+        <td style="padding: 20px;">
+            <h3>Información de Cuenta</h3>
+            <p>Has solicitado recordar los datos de acceso vinculados a este correo electrónico.</p>
+            <p>Tu nombre de usuario registrado es: <strong>@Model.Username</strong></p>
+            <p>Puedes iniciar sesión en la plataforma aquí:</p>
+            <a href="@Model.LoginUrl">Acceder al Sistema SISMEING</a>
+        </td>
+    </tr>
+</table>

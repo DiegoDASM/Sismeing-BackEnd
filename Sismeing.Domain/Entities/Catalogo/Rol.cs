@@ -16,6 +16,6 @@ namespace Sismeing.Domain.Entities.Catalogo
         public string NombreRol { get; set; } = string.Empty;
 
         // Navegación
-        public ICollection<Usuario.Usuario> Usuarios { get; set; } = [];
+        public ICollection<Operaciones.Usuario> Usuarios { get; set; } = [];
     }
 }

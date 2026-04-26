@@ -1,0 +1,21 @@
+@model Sismeing.Domain.Models.Emails.WelcomeModel
+@{ Layout = _Layout; }
+<table width="100%" style="font-family: sans-serif; color: #333;">
+    <tr>
+        <td style="background-color: #003366; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">SISMEING S.A.</h1>
+            <p style="color: #ddd; margin: 0;">Ingeniería Inteligente</p>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 30px; line-height: 1.6;">
+            <h2>¡Bienvenido, @Model.UserName!</h2>
+            <p>Es un placer darte la bienvenida a nuestra plataforma de gestión técnica. Tu cuenta ha sido creada exitosamente.</p>
+            <p>Para comenzar a utilizar el sistema, por favor configura tu contraseña en el siguiente botón:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="@Model.SetPasswordUrl" style="background-color: #CC0000; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Configurar Contraseña</a>
+            </div>
+            <p>Tu usuario de acceso es: <strong>@Model.Email</strong></p>
+        </td>
+    </tr>
+</table>

@@ -1,8 +1,8 @@
 # Ignorar todo lo generado por Visual Studio
-.vs/
-
-[Bb]in/
-[Oo]bj/
+packages/
+.vs
+**/obj
+**/bin
 
 # Proteger credenciales — NO subir al repo
 appsettings.Development.json
@@ -17,6 +17,4 @@ appsettings.Production.json
 .env
 .env.*
 
-# Logs
-*.log
-logs/
+run_output.txt
