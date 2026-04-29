@@ -8,44 +8,61 @@ namespace Sismeing.API.Controllers.Catalogo
 {
     [Authorize]
     [ApiController]
-    [Route("api/trabajo")]
+    [Route("api/[controller]")]
     public class TrabajoController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public TrabajoController(SupaBaseDBcontext context) => _context = context;
+
+        public TrabajoController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Trabajo>>> GetAll()
-            => Ok(await _context.Trabajos.Where(t => t.Activo).ToListAsync());
+        {
+            return Ok(await _context.Trabajos.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Trabajo>> GetById(int id)
         {
-            var t = await _context.Trabajos.FindAsync(id);
-            return t == null ? NotFound() : Ok(t);
+            var item = await _context.Trabajos.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Trabajo>> Create([FromBody] Trabajo trabajo)
+        public async Task<ActionResult<Trabajo>> Create([FromBody] Trabajo item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            trabajo.FechaRegistro = DateTime.UtcNow;
-            trabajo.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Trabajos.Add(trabajo);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Trabajos.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = trabajo.Id }, trabajo);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Trabajo trabajo)
+        public async Task<IActionResult> Update(int id, [FromBody] Trabajo item)
         {
-            if (id != trabajo.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Trabajos.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.NombreTrabajo = trabajo.NombreTrabajo;
-            existente.Descripcion = trabajo.Descripcion;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -53,11 +70,13 @@ namespace Sismeing.API.Controllers.Catalogo
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var trabajo = await _context.Trabajos.FindAsync(id);
-            if (trabajo == null) return NotFound();
-            trabajo.Activo = false;
-            trabajo.FechaEliminacion = DateTime.UtcNow;
-            trabajo.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Trabajos.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

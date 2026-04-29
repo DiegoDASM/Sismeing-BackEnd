@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Sismeing.Domain.Entities.DTOs;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 
@@ -9,68 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/usuario")]
+    [Route("api/[controller]")]
     public class UsuarioController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public UsuarioController(SupaBaseDBcontext context) => _context = context;
+
+        public UsuarioController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UsuarioDto>>> GetAll()
+        public async Task<ActionResult<IEnumerable<Usuario>>> GetAll()
         {
-            var usuarios = await _context.Usuarios
-                .Include(u => u.Rol)
-                .Include(u => u.Empresa)
-                .Where(u => u.Activo)
-                .Select(u => new UsuarioDto
-                {
-                    Id = u.Id,
-                    Nombre = u.Nombre,
-                    Apellido = u.Apellido,
-                    CorreoElectronico = u.CorreoElectronico,
-                    Telefono = u.Telefono,
-                    NombreRol = u.Rol != null ? u.Rol.NombreRol : string.Empty,
-                    RolId = u.RolId,
-                    EmpresaId = u.EmpresaId,
-                    NombreEmpresa = u.Empresa != null ? u.Empresa.Nombre : string.Empty,
-                    Verificado = u.Verificado
-                }).ToListAsync();
-            return Ok(usuarios);
+            return Ok(await _context.Usuarios.Where(x => x.Activo).ToListAsync());
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<UsuarioDto>> GetById(int id)
+        public async Task<ActionResult<Usuario>> GetById(int id)
         {
-            var u = await _context.Usuarios
-                .Include(u => u.Rol)
-                .Include(u => u.Empresa)
-                .FirstOrDefaultAsync(u => u.Id == id);
-            if (u == null) return NotFound();
-            return Ok(new UsuarioDto
-            {
-                Id = u.Id, Nombre = u.Nombre, Apellido = u.Apellido,
-                CorreoElectronico = u.CorreoElectronico, Telefono = u.Telefono,
-                NombreRol = u.Rol?.NombreRol ?? string.Empty, RolId = u.RolId,
-                EmpresaId = u.EmpresaId,
-                NombreEmpresa = u.Empresa?.Nombre ?? string.Empty,
-                Verificado = u.Verificado
-            });
+            var item = await _context.Usuarios.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<Usuario>> Create([FromBody] Usuario item)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Usuarios.Add(item);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] RegisterRequestDto request)
+        public async Task<IActionResult> Update(int id, [FromBody] Usuario item)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null) return NotFound();
-            usuario.Nombre = request.Nombre;
-            usuario.Apellido = request.Apellido;
-            usuario.Telefono = request.Telefono;
-            usuario.RolId = request.RolId;
-            usuario.EmpresaId = request.EmpresaId;
-            if (!string.IsNullOrEmpty(request.Password))
-                usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-            usuario.FechaModificacion = DateTime.UtcNow;
-            usuario.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            if (id != item.Id) return BadRequest();
+
+            var existente = await _context.Usuarios.FindAsync(id);
+            if (existente == null) return NotFound();
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
+            existente.FechaModificacion = DateTime.UtcNow;
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -78,22 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null) return NotFound();
-            usuario.Activo = false;
-            usuario.FechaEliminacion = DateTime.UtcNow;
-            usuario.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
+            var item = await _context.Usuarios.FindAsync(id);
+            if (item == null) return NotFound();
 
-        [HttpPatch("{id:int}/verificar")]
-        public async Task<IActionResult> Verificar(int id)
-        {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null) return NotFound();
-            usuario.Verificado = true;
-            usuario.FechaModificacion = DateTime.UtcNow;
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

@@ -8,64 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/equipo")]
+    [Route("api/[controller]")]
     public class EquipoController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public EquipoController(SupaBaseDBcontext context) => _context = context;
+
+        public EquipoController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Equipo>>> GetAll()
-            => Ok(await _context.Equipos
-                .Include(e => e.Marca)
-                .Include(e => e.Tipo)
-                .Include(e => e.Modelo)
-                .Where(e => e.Activo).ToListAsync());
+        {
+            return Ok(await _context.Equipos.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Equipo>> GetById(int id)
         {
-            var equipo = await _context.Equipos
-                .Include(e => e.Marca)
-                .Include(e => e.Tipo)
-                .Include(e => e.Modelo)
-                .Include(e => e.Proyecto)
-                .FirstOrDefaultAsync(e => e.Id == id);
-            return equipo == null ? NotFound() : Ok(equipo);
+            var item = await _context.Equipos.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
-        [HttpGet("proyecto/{proyectoId:int}")]
-        public async Task<ActionResult<IEnumerable<Equipo>>> GetByProyecto(int proyectoId)
-            => Ok(await _context.Equipos
-                .Include(e => e.Marca).Include(e => e.Tipo).Include(e => e.Modelo)
-                .Where(e => e.ProyectoId == proyectoId && e.Activo).ToListAsync());
-
         [HttpPost]
-        public async Task<ActionResult<Equipo>> Create([FromBody] Equipo equipo)
+        public async Task<ActionResult<Equipo>> Create([FromBody] Equipo item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            equipo.FechaRegistro = DateTime.UtcNow;
-            equipo.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Equipos.Add(equipo);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Equipos.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = equipo.Id }, equipo);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Equipo equipo)
+        public async Task<IActionResult> Update(int id, [FromBody] Equipo item)
         {
-            if (id != equipo.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Equipos.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.Nombre = equipo.Nombre;
-            existente.MarcaId = equipo.MarcaId;
-            existente.TipoId = equipo.TipoId;
-            existente.ModeloId = equipo.ModeloId;
-            existente.Codigo = equipo.Codigo;
-            existente.NumeroSerie = equipo.NumeroSerie;
-            existente.ProyectoId = equipo.ProyectoId;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -73,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var equipo = await _context.Equipos.FindAsync(id);
-            if (equipo == null) return NotFound();
-            equipo.Activo = false;
-            equipo.FechaEliminacion = DateTime.UtcNow;
-            equipo.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Equipos.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

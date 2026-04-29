@@ -8,47 +8,61 @@ namespace Sismeing.API.Controllers.Catalogo
 {
     [Authorize]
     [ApiController]
-    [Route("api/modelo")]
+    [Route("api/[controller]")]
     public class ModeloController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
 
-        public ModeloController(SupaBaseDBcontext context) => _context = context;
+        public ModeloController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Modelo>>> GetAll()
-            => Ok(await _context.Modelos.Where(m => m.Activo).ToListAsync());
+        {
+            return Ok(await _context.Modelos.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Modelo>> GetById(int id)
         {
-            var modelo = await _context.Modelos.FindAsync(id);
-            return modelo == null ? NotFound() : Ok(modelo);
+            var item = await _context.Modelos.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Modelo>> Create([FromBody] Modelo modelo)
+        public async Task<ActionResult<Modelo>> Create([FromBody] Modelo item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            modelo.FechaRegistro = DateTime.UtcNow;
-            modelo.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Modelos.Add(modelo);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Modelos.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = modelo.Id }, modelo);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Modelo modelo)
+        public async Task<IActionResult> Update(int id, [FromBody] Modelo item)
         {
-            if (id != modelo.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Modelos.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.NombreModelo = modelo.NombreModelo;
-            existente.Capacidad = modelo.Capacidad;
-            existente.Potencia = modelo.Potencia;
-            existente.AñoFabricacion = modelo.AñoFabricacion;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -56,11 +70,13 @@ namespace Sismeing.API.Controllers.Catalogo
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var modelo = await _context.Modelos.FindAsync(id);
-            if (modelo == null) return NotFound();
-            modelo.Activo = false;
-            modelo.FechaEliminacion = DateTime.UtcNow;
-            modelo.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Modelos.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

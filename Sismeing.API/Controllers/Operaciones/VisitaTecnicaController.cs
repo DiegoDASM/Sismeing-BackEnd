@@ -8,61 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/visita-tecnica")]
+    [Route("api/[controller]")]
     public class VisitaTecnicaController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public VisitaTecnicaController(SupaBaseDBcontext context) => _context = context;
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<VisitaTecnica>>> GetAll()
-            => Ok(await _context.VisitasTecnicas
-                .Include(v => v.Empresa)
-                .Include(v => v.Tecnico)
-                .Include(v => v.TipoTrabajo)
-                .Where(v => v.Activo).ToListAsync());
-
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<VisitaTecnica>> GetById(int id)
+        public VisitaTecnicaController(SupaBaseDBcontext context)
         {
-            var visita = await _context.VisitasTecnicas
-                .Include(v => v.Empresa).Include(v => v.Tecnico).Include(v => v.TipoTrabajo)
-                .FirstOrDefaultAsync(v => v.Id == id);
-            return visita == null ? NotFound() : Ok(visita);
+            _context = context;
         }
 
-        [HttpGet("empresa/{empresaId:int}")]
-        public async Task<ActionResult<IEnumerable<VisitaTecnica>>> GetByEmpresa(int empresaId)
-            => Ok(await _context.VisitasTecnicas
-                .Include(v => v.Tecnico).Include(v => v.TipoTrabajo)
-                .Where(v => v.EmpresaId == empresaId && v.Activo).ToListAsync());
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Visita_Tecnica>>> GetAll()
+        {
+            return Ok(await _context.VisitasTecnicas.Where(x => x.Activo).ToListAsync());
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Visita_Tecnica>> GetById(int id)
+        {
+            var item = await _context.VisitasTecnicas.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
+        }
 
         [HttpPost]
-        public async Task<ActionResult<VisitaTecnica>> Create([FromBody] VisitaTecnica visita)
+        public async Task<ActionResult<Visita_Tecnica>> Create([FromBody] Visita_Tecnica item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            visita.FechaRegistro = DateTime.UtcNow;
-            visita.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.VisitasTecnicas.Add(visita);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.VisitasTecnicas.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = visita.Id }, visita);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] VisitaTecnica visita)
+        public async Task<IActionResult> Update(int id, [FromBody] Visita_Tecnica item)
         {
-            if (id != visita.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.VisitasTecnicas.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.EmpresaId = visita.EmpresaId;
-            existente.TecnicoId = visita.TecnicoId;
-            existente.TipoTrabajoId = visita.TipoTrabajoId;
-            existente.FechaVisita = visita.FechaVisita;
-            existente.DescripcionVisita = visita.DescripcionVisita;
-            existente.Observaciones = visita.Observaciones;
-            existente.NumeroInforme = visita.NumeroInforme;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -70,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var visita = await _context.VisitasTecnicas.FindAsync(id);
-            if (visita == null) return NotFound();
-            visita.Activo = false;
-            visita.FechaEliminacion = DateTime.UtcNow;
-            visita.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.VisitasTecnicas.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

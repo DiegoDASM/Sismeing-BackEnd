@@ -8,60 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/contrato")]
+    [Route("api/[controller]")]
     public class ContratoController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public ContratoController(SupaBaseDBcontext context) => _context = context;
+
+        public ContratoController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Contrato>>> GetAll()
-            => Ok(await _context.Contratos
-                .Include(c => c.Empresa)
-                .Include(c => c.Direccion)
-                .Include(c => c.Encargado)
-                .Include(c => c.TipoTrabajo)
-                .Where(c => c.Activo).ToListAsync());
+        {
+            return Ok(await _context.Contratos.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Contrato>> GetById(int id)
         {
-            var contrato = await _context.Contratos
-                .Include(c => c.Empresa)
-                .Include(c => c.Direccion)
-                .Include(c => c.Encargado)
-                .Include(c => c.TipoTrabajo)
-                .Include(c => c.Equipos)
-                .FirstOrDefaultAsync(c => c.Id == id);
-            return contrato == null ? NotFound() : Ok(contrato);
+            var item = await _context.Contratos.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Contrato>> Create([FromBody] Contrato contrato)
+        public async Task<ActionResult<Contrato>> Create([FromBody] Contrato item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            contrato.FechaRegistro = DateTime.UtcNow;
-            contrato.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Contratos.Add(contrato);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Contratos.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = contrato.Id }, contrato);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Contrato contrato)
+        public async Task<IActionResult> Update(int id, [FromBody] Contrato item)
         {
-            if (id != contrato.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Contratos.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.NombreProyecto = contrato.NombreProyecto;
-            existente.EmpresaId = contrato.EmpresaId;
-            existente.DireccionId = contrato.DireccionId;
-            existente.EncargadoId = contrato.EncargadoId;
-            existente.TipoTrabajoId = contrato.TipoTrabajoId;
-            existente.FechaInicio = contrato.FechaInicio;
-            existente.FechaFin = contrato.FechaFin;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -69,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var contrato = await _context.Contratos.FindAsync(id);
-            if (contrato == null) return NotFound();
-            contrato.Activo = false;
-            contrato.FechaEliminacion = DateTime.UtcNow;
-            contrato.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Contratos.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

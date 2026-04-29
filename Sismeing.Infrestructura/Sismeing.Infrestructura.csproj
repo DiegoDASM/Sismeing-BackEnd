@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Plantillas\**" />
+    <Compile Remove="Repositorio\**" />
+    <EmbeddedResource Remove="Plantillas\**" />
+    <EmbeddedResource Remove="Repositorio\**" />
+    <None Remove="Plantillas\**" />
+    <None Remove="Repositorio\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
       <PrivateAssets>all</PrivateAssets>
@@ -22,10 +31,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sismeing.Domain\Sismeing.Domain.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Plantillas\" />
   </ItemGroup>
 
 </Project>

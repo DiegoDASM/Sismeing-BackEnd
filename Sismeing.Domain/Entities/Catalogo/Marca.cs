@@ -1,21 +1,19 @@
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Catalogo
 {
-    [Table("marca", Schema = "public")]
-    public class Marca : AuditProperties
+    [Table(nameof(Marca), Schema = "public")]
+    public class Marca : AuditCatProperties
     {
         [Key]
-        [Column("id")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
-        [Required]
-        [Column("marca")]
-        [StringLength(255)]
-        public string NombreMarca { get; set; } = string.Empty;
-
-        // Navegación
-        public ICollection<Operaciones.Equipo> Equipos { get; set; } = [];
+        public string NombreMarca { get; set; } = null!;
     }
 }

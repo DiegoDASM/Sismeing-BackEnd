@@ -8,60 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/instalacion")]
+    [Route("api/[controller]")]
     public class InstalacionController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public InstalacionController(SupaBaseDBcontext context) => _context = context;
+
+        public InstalacionController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Instalacion>>> GetAll()
-            => Ok(await _context.Instalaciones
-                .Include(i => i.Equipo)
-                .Include(i => i.Area)
-                .Include(i => i.Tecnico)
-                .Include(i => i.Estado)
-                .Where(i => i.Activo).ToListAsync());
+        {
+            return Ok(await _context.Instalaciones.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Instalacion>> GetById(int id)
         {
-            var instalacion = await _context.Instalaciones
-                .Include(i => i.Equipo).Include(i => i.Area)
-                .Include(i => i.Tecnico).Include(i => i.Estado)
-                .Include(i => i.Fotos)
-                .FirstOrDefaultAsync(i => i.Id == id);
-            return instalacion == null ? NotFound() : Ok(instalacion);
+            var item = await _context.Instalaciones.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Instalacion>> Create([FromBody] Instalacion instalacion)
+        public async Task<ActionResult<Instalacion>> Create([FromBody] Instalacion item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            instalacion.FechaRegistro = DateTime.UtcNow;
-            instalacion.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Instalaciones.Add(instalacion);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Instalaciones.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = instalacion.Id }, instalacion);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Instalacion instalacion)
+        public async Task<IActionResult> Update(int id, [FromBody] Instalacion item)
         {
-            if (id != instalacion.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Instalaciones.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.EquipoId = instalacion.EquipoId;
-            existente.AreaId = instalacion.AreaId;
-            existente.TecnicoId = instalacion.TecnicoId;
-            existente.OrdenTrabajo = instalacion.OrdenTrabajo;
-            existente.HorasTrabajadas = instalacion.HorasTrabajadas;
-            existente.FechaInicio = instalacion.FechaInicio;
-            existente.FechaFin = instalacion.FechaFin;
-            existente.EstadoId = instalacion.EstadoId;
-            existente.NumeroInforme = instalacion.NumeroInforme;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -69,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var instalacion = await _context.Instalaciones.FindAsync(id);
-            if (instalacion == null) return NotFound();
-            instalacion.Activo = false;
-            instalacion.FechaEliminacion = DateTime.UtcNow;
-            instalacion.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Instalaciones.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

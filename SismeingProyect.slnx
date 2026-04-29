@@ -2,4 +2,5 @@
   <Project Path="Sismeing.API/Sismeing.API.csproj" />
   <Project Path="Sismeing.Domain/Sismeing.Domain.csproj" />
   <Project Path="Sismeing.Infrestructura/Sismeing.Infrestructura.csproj" />
+  <Project Path="Sismeing.Service/Sismeing.Service.csproj" Id="eaa0fab9-682f-40f5-9f93-268a23a9c5e2" />
 </Solution>

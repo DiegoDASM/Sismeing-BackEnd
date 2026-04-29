@@ -18,3 +18,5 @@ appsettings.Production.json
 .env.*
 
 run_output.txt
+build_errors.txt
+build_errors_2.txt

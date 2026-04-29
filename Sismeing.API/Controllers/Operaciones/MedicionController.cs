@@ -8,63 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/medicion")]
+    [Route("api/[controller]")]
     public class MedicionController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public MedicionController(SupaBaseDBcontext context) => _context = context;
+
+        public MedicionController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Medicion>>> GetAll()
-            => Ok(await _context.Mediciones
-                .Include(m => m.Equipo).Include(m => m.Area)
-                .Where(m => m.Activo).ToListAsync());
+        {
+            return Ok(await _context.Mediciones.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Medicion>> GetById(int id)
         {
-            var medicion = await _context.Mediciones
-                .Include(m => m.Equipo).Include(m => m.Area)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            return medicion == null ? NotFound() : Ok(medicion);
+            var item = await _context.Mediciones.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
-        [HttpGet("equipo/{equipoId:int}")]
-        public async Task<ActionResult<IEnumerable<Medicion>>> GetByEquipo(int equipoId)
-            => Ok(await _context.Mediciones.Where(m => m.EquipoId == equipoId && m.Activo).ToListAsync());
-
         [HttpPost]
-        public async Task<ActionResult<Medicion>> Create([FromBody] Medicion medicion)
+        public async Task<ActionResult<Medicion>> Create([FromBody] Medicion item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            medicion.FechaRegistro = DateTime.UtcNow;
-            medicion.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Mediciones.Add(medicion);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Mediciones.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = medicion.Id }, medicion);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Medicion medicion)
+        public async Task<IActionResult> Update(int id, [FromBody] Medicion item)
         {
-            if (id != medicion.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Mediciones.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.Voltaje = medicion.Voltaje;
-            existente.Frecuencia = medicion.Frecuencia;
-            existente.AmpEvaporadorVentiladorRla = medicion.AmpEvaporadorVentiladorRla;
-            existente.AmpMotorCondensadoraRla = medicion.AmpMotorCondensadoraRla;
-            existente.AmpCompresorRla = medicion.AmpCompresorRla;
-            existente.PresionSuccionPsi = medicion.PresionSuccionPsi;
-            existente.PresionDescargaPsi = medicion.PresionDescargaPsi;
-            existente.TempInicialFinalEvapC = medicion.TempInicialFinalEvapC;
-            existente.TempInicialFinalCondC = medicion.TempInicialFinalCondC;
-            existente.TempIngresoSalidaAguaC = medicion.TempIngresoSalidaAguaC;
-            existente.TemperaturaProgramadaC = medicion.TemperaturaProgramadaC;
-            existente.HumedadRelativaProgPct = medicion.HumedadRelativaProgPct;
-            existente.Inicial = medicion.Inicial;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -72,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var medicion = await _context.Mediciones.FindAsync(id);
-            if (medicion == null) return NotFound();
-            medicion.Activo = false;
-            medicion.FechaEliminacion = DateTime.UtcNow;
-            medicion.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Mediciones.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

@@ -27,4 +27,9 @@
     <ProjectReference Include="..\Sismeing.Infrestructura\Sismeing.Infrestructura.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\Catalogo\" />
+    <Folder Include="Controllers\Operaciones\" />
+  </ItemGroup>
+
 </Project>

@@ -8,46 +8,75 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/foto-mantenimiento")]
+    [Route("api/[controller]")]
     public class FotoMantenimientoController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public FotoMantenimientoController(SupaBaseDBcontext context) => _context = context;
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<FotoMantenimiento>>> GetAll()
-            => Ok(await _context.FotosMantenimiento.Where(f => f.Activo).ToListAsync());
-
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<FotoMantenimiento>> GetById(int id)
+        public FotoMantenimientoController(SupaBaseDBcontext context)
         {
-            var foto = await _context.FotosMantenimiento.FindAsync(id);
-            return foto == null ? NotFound() : Ok(foto);
+            _context = context;
         }
 
-        [HttpGet("mantenimiento/{mantenimientoId:int}")]
-        public async Task<ActionResult<IEnumerable<FotoMantenimiento>>> GetByMantenimiento(int mantenimientoId)
-            => Ok(await _context.FotosMantenimiento.Where(f => f.MantenimientoId == mantenimientoId && f.Activo).ToListAsync());
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Foto_Mantenimiento>>> GetAll()
+        {
+            return Ok(await _context.FotosMantenimiento.Where(x => x.Activo).ToListAsync());
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Foto_Mantenimiento>> GetById(int id)
+        {
+            var item = await _context.FotosMantenimiento.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
+        }
 
         [HttpPost]
-        public async Task<ActionResult<FotoMantenimiento>> Create([FromBody] FotoMantenimiento foto)
+        public async Task<ActionResult<Foto_Mantenimiento>> Create([FromBody] Foto_Mantenimiento item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            foto.FechaRegistro = DateTime.UtcNow;
-            foto.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.FotosMantenimiento.Add(foto);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.FotosMantenimiento.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = foto.Id }, foto);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Foto_Mantenimiento item)
+        {
+            if (id != item.Id) return BadRequest();
+
+            var existente = await _context.FotosMantenimiento.FindAsync(id);
+            if (existente == null) return NotFound();
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
+            existente.FechaModificacion = DateTime.UtcNow;
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var foto = await _context.FotosMantenimiento.FindAsync(id);
-            if (foto == null) return NotFound();
-            foto.Activo = false;
-            foto.FechaEliminacion = DateTime.UtcNow;
-            foto.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.FotosMantenimiento.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

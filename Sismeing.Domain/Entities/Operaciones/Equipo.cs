@@ -1,54 +1,35 @@
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Sismeing.Domain.Entities.Catalogo;
 
 namespace Sismeing.Domain.Entities.Operaciones
 {
-    [Table("equipo", Schema = "public")]
-    public class Equipo : AuditProperties
+    [Table(nameof(Equipo), Schema = "public")]
+    public class Equipo : AuditCatProperties
     {
         [Key]
-        [Column("id")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
-        [Required]
-        [Column("nombre")]
-        [StringLength(255)]
-        public string Nombre { get; set; } = string.Empty;
-
-        [Column("marca_id")]
+        public string Nombre { get; set; } = null!;
         public int MarcaId { get; set; }
-
-        [Column("tipo_id")]
         public int TipoId { get; set; }
-
-        [Column("modelo_id")]
         public int ModeloId { get; set; }
-
-        [Column("codigo")]
-        [StringLength(100)]
         public string? Codigo { get; set; }
-
-        [Column("numero_serie")]
-        [StringLength(100)]
         public string? NumeroSerie { get; set; }
-
-        [Column("proyecto_id")]
         public int? ProyectoId { get; set; }
 
-        // Navegación
         [ForeignKey("MarcaId")]
-        public Catalogo.Marca? Marca { get; set; }
-
+        public virtual Marca? Marca { get; set; }
         [ForeignKey("TipoId")]
-        public Catalogo.TipoEquipo? Tipo { get; set; }
-
+        public virtual Tipo_Equipo? TipoEquipo { get; set; }
         [ForeignKey("ModeloId")]
-        public Catalogo.Modelo? Modelo { get; set; }
-
+        public virtual Modelo? Modelo { get; set; }
         [ForeignKey("ProyectoId")]
-        public Contrato? Proyecto { get; set; }
-
-        public ICollection<Instalacion> Instalaciones { get; set; } = [];
-        public ICollection<Medicion> Mediciones { get; set; } = [];
+        public virtual Contrato? Proyecto { get; set; }
     }
 }

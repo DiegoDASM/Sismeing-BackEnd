@@ -8,50 +8,61 @@ namespace Sismeing.API.Controllers.Operaciones
 {
     [Authorize]
     [ApiController]
-    [Route("api/empresa")]
+    [Route("api/[controller]")]
     public class EmpresaController : ControllerBase
     {
         private readonly SupaBaseDBcontext _context;
-        public EmpresaController(SupaBaseDBcontext context) => _context = context;
+
+        public EmpresaController(SupaBaseDBcontext context)
+        {
+            _context = context;
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Empresa>>> GetAll()
-            => Ok(await _context.Empresas.Where(e => e.Activo).ToListAsync());
+        {
+            return Ok(await _context.Empresas.Where(x => x.Activo).ToListAsync());
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Empresa>> GetById(int id)
         {
-            var empresa = await _context.Empresas
-                .Include(e => e.AreasEmpresa)
-                .Include(e => e.DireccionesEmpresa)
-                .FirstOrDefaultAsync(e => e.Id == id);
-            return empresa == null ? NotFound() : Ok(empresa);
+            var item = await _context.Empresas.FirstOrDefaultAsync(x => x.Id == id);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Empresa>> Create([FromBody] Empresa empresa)
+        public async Task<ActionResult<Empresa>> Create([FromBody] Empresa item)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            empresa.FechaRegistro = DateTime.UtcNow;
-            empresa.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-            _context.Empresas.Add(empresa);
+
+            item.FechaRegistro = DateTime.UtcNow;
+            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+            _context.Empresas.Add(item);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = empresa.Id }, empresa);
+
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Empresa empresa)
+        public async Task<IActionResult> Update(int id, [FromBody] Empresa item)
         {
-            if (id != empresa.Id) return BadRequest();
+            if (id != item.Id) return BadRequest();
+
             var existente = await _context.Empresas.FindAsync(id);
             if (existente == null) return NotFound();
-            existente.Nombre = empresa.Nombre;
-            existente.RazonSocial = empresa.RazonSocial;
-            existente.Telefono = empresa.Telefono;
-            existente.CorreoElectronico = empresa.CorreoElectronico;
-            existente.Logo = empresa.Logo;
+
+            var fechaRegistro = existente.FechaRegistro;
+            var usuarioRegistro = existente.UsuarioRegistro;
+
+            _context.Entry(existente).CurrentValues.SetValues(item);
+
+            existente.FechaRegistro = fechaRegistro;
+            existente.UsuarioRegistro = usuarioRegistro;
             existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString();
+            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -59,11 +70,13 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var empresa = await _context.Empresas.FindAsync(id);
-            if (empresa == null) return NotFound();
-            empresa.Activo = false;
-            empresa.FechaEliminacion = DateTime.UtcNow;
-            empresa.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString();
+            var item = await _context.Empresas.FindAsync(id);
+            if (item == null) return NotFound();
+
+            item.Activo = false;
+            item.FechaEliminacion = DateTime.UtcNow;
+            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

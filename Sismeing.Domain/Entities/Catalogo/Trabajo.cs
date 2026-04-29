@@ -1,21 +1,20 @@
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Catalogo
 {
-    [Table("trabajo", Schema = "public")]
-    public class Trabajo : AuditProperties
+    [Table(nameof(Trabajo), Schema = "public")]
+    public class Trabajo : AuditCatProperties
     {
         [Key]
-        [Column("id")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
-        [Required]
-        [Column("trabajo")]
-        [StringLength(255)]
-        public string NombreTrabajo { get; set; } = string.Empty;
-
-        [Column("descripcion")]
+        public string NombreTrabajo { get; set; } = null!;
         public string? Descripcion { get; set; }
     }
 }
