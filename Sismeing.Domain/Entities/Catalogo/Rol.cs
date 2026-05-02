@@ -8,12 +8,14 @@ using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Catalogo
 {
-    [Table(nameof(Rol), Schema = "public")]
+    [Table("rol", Schema = "public")]
     public class Rol : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+        [Column("rol")]
         public string NombreRol { get; set; } = null!;
     }
 }

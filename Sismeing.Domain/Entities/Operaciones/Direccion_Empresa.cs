@@ -8,13 +8,18 @@ using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Operaciones
 {
-    [Table(nameof(Direccion_Empresa), Schema = "public")]
+    [Table("direccion_empresa", Schema = "public")]
     public class Direccion_Empresa : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+
+        [Column("empresa_id")]
         public int EmpresaId { get; set; }
+
+        [Column("direccion")]
         public string Direccion { get; set; } = null!;
 
         [ForeignKey("EmpresaId")]

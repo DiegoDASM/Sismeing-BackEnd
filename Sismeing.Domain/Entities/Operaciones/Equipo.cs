@@ -9,18 +9,33 @@ using Sismeing.Domain.Entities.Catalogo;
 
 namespace Sismeing.Domain.Entities.Operaciones
 {
-    [Table(nameof(Equipo), Schema = "public")]
+    [Table("equipo", Schema = "public")]
     public class Equipo : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+
+        [Column("nombre")]
         public string Nombre { get; set; } = null!;
+
+        [Column("marca_id")]
         public int MarcaId { get; set; }
+
+        [Column("tipo_id")]
         public int TipoId { get; set; }
+
+        [Column("modelo_id")]
         public int ModeloId { get; set; }
+
+        [Column("codigo")]
         public string? Codigo { get; set; }
+
+        [Column("numero_serie")]
         public string? NumeroSerie { get; set; }
+
+        [Column("proyecto_id")]
         public int? ProyectoId { get; set; }
 
         [ForeignKey("MarcaId")]

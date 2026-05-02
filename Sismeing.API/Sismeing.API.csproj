@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Sismeing.Domain\Sismeing.Domain.csproj" />
     <ProjectReference Include="..\Sismeing.Infrestructura\Sismeing.Infrestructura.csproj" />
+    <ProjectReference Include="..\Sismeing.Service\Sismeing.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>

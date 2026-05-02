@@ -9,18 +9,32 @@ using Sismeing.Domain.Entities.Catalogo;
 
 namespace Sismeing.Domain.Entities.Operaciones
 {
-    [Table(nameof(Contrato), Schema = "public")]
+    [Table("contrato", Schema = "public")]
     public class Contrato : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+        [Column("nombre_proyecto")]
         public string NombreProyecto { get; set; } = null!;
+
+        [Column("empresa_id")]
         public int EmpresaId { get; set; }
+        
+        [Column("direccion_id")]
         public int DireccionId { get; set; }
+        
+        [Column("encargado_id")]
         public int EncargadoId { get; set; }
+        
+        [Column("tipo_trabajo_id")]
         public int TipoTrabajoId { get; set; }
+        
+        [Column("fecha_inicio")]
         public DateTime FechaInicio { get; set; }
+        
+        [Column("fecha_fin")]
         public DateTime? FechaFin { get; set; }
 
         [ForeignKey("EmpresaId")]

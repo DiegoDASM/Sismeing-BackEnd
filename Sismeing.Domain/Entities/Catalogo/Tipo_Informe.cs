@@ -8,12 +8,14 @@ using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Catalogo
 {
-    [Table(nameof(Tipo_Informe), Schema = "public")]
+    [Table("tipo_informe", Schema = "public")]
     public class Tipo_Informe : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+        [Column("informe")]
         public string Informe { get; set; } = null!;
     }
 }

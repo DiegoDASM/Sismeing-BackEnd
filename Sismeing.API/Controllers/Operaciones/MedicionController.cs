@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
+using Sismeing.Service;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
-    [Authorize]
+    //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class MedicionController : ControllerBase
+    public class MedicionController : Controller
     {
         private readonly SupaBaseDBcontext _context;
 
@@ -19,66 +20,100 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Medicion>>> GetAll()
+        public async Task<ActionResult> GetAll()
         {
-            return Ok(await _context.Mediciones.Where(x => x.Activo).ToListAsync());
+            try
+            {
+                var data = await _context.Mediciones.ToListAsync();
+                return Ok(new JsonResponse<IEnumerable<Medicion>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Medicion>>(null, ex.Message, ResponseStatus.error));
+            }
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<Medicion>> GetById(int id)
+        public async Task<ActionResult> GetById(int id)
         {
-            var item = await _context.Mediciones.FirstOrDefaultAsync(x => x.Id == id);
-            return item == null ? NotFound() : Ok(item);
+            try
+            {
+                var data = await _context.Mediciones.FindAsync(id);
+                if (data == null)
+                    return NotFound(new JsonResponse<Medicion>(null, "No encontrado", ResponseStatus.error));
+                return Ok(new JsonResponse<Medicion>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<Medicion>(null, ex.Message, ResponseStatus.error));
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<Medicion>> Create([FromBody] Medicion item)
+        public async Task<ActionResult> Create([FromBody] Medicion item)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            try
+            {
+                item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                item.FechaRegistro = DateTime.UtcNow;
+                item.Activo = true;
 
-            item.FechaRegistro = DateTime.UtcNow;
-            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                _context.Mediciones.Add(item);
+                await _context.SaveChangesAsync();
 
-            _context.Mediciones.Add(item);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+                return Ok(new JsonResponse<Medicion>(item));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<Medicion>(null, ex.Message, ResponseStatus.error));
+            }
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Medicion item)
+        public async Task<ActionResult> Update(int id, [FromBody] Medicion item)
         {
-            if (id != item.Id) return BadRequest();
+            try
+            {
+                if (id != item.Id)
+                    return BadRequest(new JsonResponse<bool>(false, "El ID no coincide", ResponseStatus.error));
 
-            var existente = await _context.Mediciones.FindAsync(id);
-            if (existente == null) return NotFound();
+                var existingItem = await _context.Mediciones.FindAsync(id);
+                if (existingItem == null)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
-            var fechaRegistro = existente.FechaRegistro;
-            var usuarioRegistro = existente.UsuarioRegistro;
+                _context.Entry(existingItem).CurrentValues.SetValues(item);
+                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.FechaModificacion = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
 
-            _context.Entry(existente).CurrentValues.SetValues(item);
-
-            existente.FechaRegistro = fechaRegistro;
-            existente.UsuarioRegistro = usuarioRegistro;
-            existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-
-            await _context.SaveChangesAsync();
-            return NoContent();
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult> Delete(int id)
         {
-            var item = await _context.Mediciones.FindAsync(id);
-            if (item == null) return NotFound();
+            try
+            {
+                var existingItem = await _context.Mediciones.FindAsync(id);
+                if (existingItem == null)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
-            item.Activo = false;
-            item.FechaEliminacion = DateTime.UtcNow;
-            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.Activo = false;
+                existingItem.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.FechaEliminacion = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
         }
     }
 }

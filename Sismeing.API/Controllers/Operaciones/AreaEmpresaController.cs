@@ -3,82 +3,132 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
+using Sismeing.Service;
+using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
-    [Authorize]
+    //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class AreaEmpresaController : ControllerBase
+    public class Area_EmpresaController : Controller
     {
         private readonly SupaBaseDBcontext _context;
 
-        public AreaEmpresaController(SupaBaseDBcontext context)
+        public Area_EmpresaController(SupaBaseDBcontext context)
         {
             _context = context;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Area_Empresa>>> GetAll()
+        public async Task<ActionResult> GetAll()
         {
-            return Ok(await _context.AreasEmpresa.Where(x => x.Activo).ToListAsync());
+            try
+            {
+                var data = await _context.AreasEmpresa.ToListAsync();
+                return Ok(new JsonResponse<IEnumerable<Area_Empresa>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Area_Empresa>>(null, ex.Message, ResponseStatus.error));
+            }
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<Area_Empresa>> GetById(int id)
+        public async Task<ActionResult> GetById(int id)
         {
-            var item = await _context.AreasEmpresa.FirstOrDefaultAsync(x => x.Id == id);
-            return item == null ? NotFound() : Ok(item);
+            try
+            {
+                // CAMBIO AQUÍ: Buscar directo en la DB
+                var data = await _context.AreasEmpresa.FindAsync(id);
+
+                if (data == null)
+                    return NotFound(new JsonResponse<Area_Empresa>(null, "No encontrado", ResponseStatus.error));
+
+                return Ok(new JsonResponse<Area_Empresa>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<Area_Empresa>(null, ex.Message, ResponseStatus.error));
+            }
         }
+
 
         [HttpPost]
-        public async Task<ActionResult<Area_Empresa>> Create([FromBody] Area_Empresa item)
+        public async Task<ActionResult> Create([FromBody] Area_Empresa item)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            try
+            {
+                item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                item.FechaRegistro = DateTime.UtcNow;
+                item.Activo = true;
 
-            item.FechaRegistro = DateTime.UtcNow;
-            item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                // CAMBIO AQUÍ: Añadir a la tabla y guardar
+                _context.AreasEmpresa.Add(item);
+                await _context.SaveChangesAsync();
 
-            _context.AreasEmpresa.Add(item);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+                return Ok(new JsonResponse<Area_Empresa>(item));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<Area_Empresa>(null, ex.Message, ResponseStatus.error));
+            }
         }
+
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Area_Empresa item)
+        public async Task<ActionResult> Update(int id, [FromBody] Area_Empresa item)
         {
-            if (id != item.Id) return BadRequest();
+            try
+            {
+                if (id != item.Id)
+                    return BadRequest(new JsonResponse<bool>(false, "El ID no coincide", ResponseStatus.error));
 
-            var existente = await _context.AreasEmpresa.FindAsync(id);
-            if (existente == null) return NotFound();
+                // CAMBIO AQUÍ: Buscar, actualizar y guardar
+                var existingItem = await _context.AreasEmpresa.FindAsync(id);
+                if (existingItem == null)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
-            var fechaRegistro = existente.FechaRegistro;
-            var usuarioRegistro = existente.UsuarioRegistro;
+                // Copiar los valores nuevos al objeto existente
+                _context.Entry(existingItem).CurrentValues.SetValues(item);
 
-            _context.Entry(existente).CurrentValues.SetValues(item);
+                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.FechaModificacion = DateTime.UtcNow;
 
-            existente.FechaRegistro = fechaRegistro;
-            existente.UsuarioRegistro = usuarioRegistro;
-            existente.FechaModificacion = DateTime.UtcNow;
-            existente.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                await _context.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
         }
+
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult> Delete(int id)
         {
-            var item = await _context.AreasEmpresa.FindAsync(id);
-            if (item == null) return NotFound();
+            try
+            {
+                // CAMBIO AQUÍ: Buscar, cambiar estado y guardar
+                var existingItem = await _context.AreasEmpresa.FindAsync(id);
+                if (existingItem == null)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
-            item.Activo = false;
-            item.FechaEliminacion = DateTime.UtcNow;
-            item.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.Activo = false; // Eliminación lógica
+                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                existingItem.FechaModificacion = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+                await _context.SaveChangesAsync();
+
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
         }
+
     }
 }

@@ -5,7 +5,10 @@ using Microsoft.OpenApi.Models;
 using Sismeing.API.Middleware;
 using Sismeing.Infrestructura.Persistence;
 using System.Text;
-
+using Sismeing.Service.Interfaces.Catalogo;
+using Sismeing.Service.Interfaces.Operaciones;
+using Sismeing.Service.Interfaces.Comunes;
+using Sismeing.Service.Services.Email;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Conexión a la base de datos Supabase (PostgreSQL) ────────────────────────
@@ -57,6 +60,12 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// ── Dependency Injection (Servicios) ──────────────────────────────────────────
+
+// Comunes (Correos)
+builder.Services.AddScoped<IEmailPreviewService, EmailPreviewService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // ── Controllers & Swagger ─────────────────────────────────────────────────────
 builder.Services.AddControllers()

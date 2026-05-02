@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Sismeing.Service.EntitiesDTO.Catalogo
+namespace Sismeing.Service.EntitiesDTO.Operaciones
 {
     public class UsuarioDto
     {

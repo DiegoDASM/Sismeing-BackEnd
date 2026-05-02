@@ -8,15 +8,20 @@ using System.Threading.Tasks;
 
 namespace Sismeing.Domain.Entities.Catalogo
 {
-    [Table(nameof(Modelo), Schema = "public")]
+    [Table("modelo", Schema = "public")]
     public class Modelo : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+        [Column("modelo")]
         public string NombreModelo { get; set; } = null!;
+        [Column("capacidad")]
         public string? Capacidad { get; set; }
+        [Column("potencia")]
         public string? Potencia { get; set; }
+        [Column("anio_fabricacion")]
         public short? AnioFabricacion { get; set; }
     }
 }

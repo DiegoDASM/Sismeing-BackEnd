@@ -8,11 +8,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sismeing.Domain\Sismeing.Domain.csproj" />
+    <ProjectReference Include="..\Sismeing.Infrestructura\Sismeing.Infrestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="EntitiesDTO\Operaciones\" />
-    <Folder Include="Interfaz\Catalogo\" />
+    <PackageReference Include="RazorLight" Version="2.3.1" />
   </ItemGroup>
 
 </Project>

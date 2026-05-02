@@ -9,18 +9,26 @@ using Sismeing.Domain.Entities.Catalogo;
 
 namespace Sismeing.Domain.Entities.Operaciones
 {
-    [Table(nameof(Visita_Tecnica), Schema = "public")]
+    [Table("visita_tecnica", Schema = "public")]
     public class Visita_Tecnica : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
+        [Column("empresa_id")]
         public int EmpresaId { get; set; }
+        [Column("tecnico_id")]
         public int TecnicoId { get; set; }
+        [Column("tipo_trabajo_id")]
         public int TipoTrabajoId { get; set; }
+        [Column("fecha_visita")]
         public DateTime FechaVisita { get; set; }
+        [Column("descripcion_visita")]
         public string? DescripcionVisita { get; set; }
+        [Column("observaciones")]
         public string? Observaciones { get; set; }
+        [Column("numero_informe")]
         public string? NumeroInforme { get; set; }
 
         [ForeignKey("EmpresaId")]
