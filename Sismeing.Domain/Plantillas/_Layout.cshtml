@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title</title>
+    <style>
+        /* Estilos generales (Inline fallback recomendado) */
+        body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f4f4f4; padding-bottom: 40px; }
+        .main { background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 600px; border-spacing: 0; color: #4a4a4a; }
+        .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #003366; }
+        .content { padding: 30px; }
+        .footer { background-color: #333333; color: #ffffff; padding: 20px; text-align: center; font-size: 12px; }
+        .button { background-color: #CC0000; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; }
+    </style>
+</head>
+<body>
+    <center class="wrapper">
+        <table class="main" width="100%">
+            <tr>
+                <td class="header">
+                    <img src="https://tu-repositorio.com/sismeing-logo.png" alt="SISMEING S.A." width="180" style="display: block; margin: 0 auto;">
+                    <p style="margin: 5px 0 0 0; color: #003366; font-weight: bold; letter-spacing: 1px; font-size: 14px;">
+                        INGENIERÍA INTELIGENTE
+                    </p>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="content">
+                    @RenderBody()
+                </td>
+            </tr>
+
+            <tr>
+                <td class="footer">
+                    <p style="margin: 0 0 10px 0;"><strong>SISMEING S.A. - Sistemas Mecánicos e Ingeniería</strong></p>
+                    <p style="margin: 0;">Guayaquil, Ecuador</p>
+                    <p style="margin: 5px 0;">Teléfono: (04) 2XXXXXX | Correo: soporte@sismeing.com.ec</p>
+                    <hr style="border: 0; border-top: 1px solid #555; margin: 15px 0;">
+                    <p style="font-size: 10px; color: #aaaaaa;">
+                        Este es un mensaje automático generado por el sistema de gestión SISMEING. Por favor, no responda a este correo.
+                    </p>
+                </td>
+            </tr>
+        </table>
+    </center>
+</body>
+</html>

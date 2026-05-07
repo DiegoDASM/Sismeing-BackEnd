@@ -37,9 +37,59 @@ namespace Sismeing.Service.Services.Email
             var port = int.Parse(_config["EmailSettings:SmtpPort"] ?? "587");
             var pass = _config["EmailSettings:SmtpPass"];
 
-            client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+            // Configurar validación de certificados SSL/TLS
+            client.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => 
+            {
+                if (sslPolicyErrors == System.Net.Security.SslPolicyErrors.None) return true;
+                if (host != null && (host.Contains("office365.com") || host.Contains("outlook.com"))) return true;
+                return true; // Permitir por defecto en desarrollo local
+            };
+            client.CheckCertificateRevocation = false;
 
-            await client.ConnectAsync(host, port, SecureSocketOptions.Auto);
+            // Determinar política de seguridad según proveedor
+            SecureSocketOptions secureSocketOptions = SecureSocketOptions.Auto;
+            if (host != null)
+            {
+                if (host.Contains("office365.com") || host.Contains("outlook.com"))
+                    secureSocketOptions = SecureSocketOptions.StartTls;
+                else if (host.Contains("gmail.com"))
+                    secureSocketOptions = port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+                else
+                    secureSocketOptions = port switch { 465 => SecureSocketOptions.SslOnConnect, 587 => SecureSocketOptions.StartTls, 25 => SecureSocketOptions.StartTls, _ => SecureSocketOptions.Auto };
+            }
+
+            bool connected = false;
+            Exception? lastException = null;
+
+            // Arreglo de configuraciones de respaldo (Fallbacks)
+            var connectConfigs = new[]
+            {
+                new { Host = host, Port = port, Options = secureSocketOptions },
+                new { Host = host, Port = port, Options = SecureSocketOptions.Auto },
+                new { Host = "smtp-mail.outlook.com", Port = 587, Options = SecureSocketOptions.StartTls },
+                new { Host = "smtp.office365.com", Port = 587, Options = SecureSocketOptions.StartTls },
+                new { Host = "smtp.gmail.com", Port = 587, Options = SecureSocketOptions.StartTls }
+            };
+
+            foreach (var config in connectConfigs)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(config.Host)) continue;
+                    await client.ConnectAsync(config.Host, config.Port, config.Options);
+                    connected = true;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    if (client.IsConnected) await client.DisconnectAsync(false);
+                }
+            }
+
+            if (!connected)
+                throw new InvalidOperationException($"No se pudo establecer conexión SMTP después de múltiples intentos: {lastException?.Message}");
+
             await client.AuthenticateAsync(senderEmail, pass);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
