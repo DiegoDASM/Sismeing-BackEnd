@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Catalogo;
-using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
+using Sismeing.Service.Interfaces.Catalogo;
 
 namespace Sismeing.API.Controllers.Catalogo
 {
@@ -12,11 +11,11 @@ namespace Sismeing.API.Controllers.Catalogo
     [Route("api/[controller]")]
     public class EstadoController : Controller
     {
-        private readonly SupaBaseDBcontext _context;
+        private readonly IEstadoService _estadoService;
 
-        public EstadoController(SupaBaseDBcontext context)
+        public EstadoController(IEstadoService estadoservice)
         {
-            _context = context;
+            _estadoService = estadoservice;
         }
 
         [HttpGet]
@@ -24,7 +23,7 @@ namespace Sismeing.API.Controllers.Catalogo
         {
             try
             {
-                var data = await _context.Estados.ToListAsync();
+                var data = await _estadoService.GetAllAsync();
                 return Ok(new JsonResponse<IEnumerable<Estado>>(data));
             }
             catch (Exception ex)
@@ -38,7 +37,7 @@ namespace Sismeing.API.Controllers.Catalogo
         {
             try
             {
-                var data = await _context.Estados.FindAsync(id);
+                var data = await _estadoService.GetByIdAsync(id);
                 if (data == null)
                     return NotFound(new JsonResponse<Estado>(null, "No encontrado", ResponseStatus.error));
                 return Ok(new JsonResponse<Estado>(data));
@@ -54,14 +53,10 @@ namespace Sismeing.API.Controllers.Catalogo
         {
             try
             {
-                item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                item.FechaRegistro = DateTime.UtcNow;
-                item.Activo = true;
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _estadoService.CreateAsync(item, userEmail);
 
-                _context.Estados.Add(item);
-                await _context.SaveChangesAsync();
-
-                return Ok(new JsonResponse<Estado>(item));
+                return Ok(new JsonResponse<Estado>(result));
             }
             catch (Exception ex)
             {
@@ -77,14 +72,11 @@ namespace Sismeing.API.Controllers.Catalogo
                 if (id != item.Id)
                     return BadRequest(new JsonResponse<bool>(false, "El ID no coincide", ResponseStatus.error));
 
-                var existingItem = await _context.Estados.FindAsync(id);
-                if (existingItem == null)
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _estadoService.UpdateAsync(id, item, userEmail);
+                
+                if (!success)
                     return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
-
-                _context.Entry(existingItem).CurrentValues.SetValues(item);
-                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaModificacion = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
 
                 return Ok(new JsonResponse<bool>(true));
             }
@@ -99,14 +91,11 @@ namespace Sismeing.API.Controllers.Catalogo
         {
             try
             {
-                var existingItem = await _context.Estados.FindAsync(id);
-                if (existingItem == null)
-                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _estadoService.DeleteAsync(id, userEmail);
 
-                existingItem.Activo = false;
-                existingItem.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaEliminacion = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
                 return Ok(new JsonResponse<bool>(true));
             }
