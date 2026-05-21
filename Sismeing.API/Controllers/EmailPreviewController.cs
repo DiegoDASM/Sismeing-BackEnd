@@ -17,27 +17,6 @@ namespace Sismeing.API.Controllers
             _emailService = emailService;
         }
 
-        [HttpGet("preview/bienvenida")]
-        public async Task<IActionResult> PreviewBienvenida()
-        {
-            try
-            {
-                var model = new WelcomeModel
-                {
-                    UserName = "Usuario de Prueba",
-                    SetPasswordUrl = "https://sismeing.com/set-password?token=12345",
-                    Email = "prueba@sismeing.com"
-                };
-
-                var html = await _emailPreviewService.RenderTemplateAsync("Bienvenida", model);
-                return Content(html, "text/html");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Error renderizando plantilla: {ex.Message}");
-            }
-        }
-
         [HttpGet("test-real-email")]
         public async Task<IActionResult> TestRealEmail([FromQuery] string email)
         {
@@ -46,14 +25,18 @@ namespace Sismeing.API.Controllers
                 if (string.IsNullOrEmpty(email))
                     return BadRequest("Debes proporcionar un email en la query string ?email=tucorreo@ejemplo.com");
 
-                var model = new WelcomeModel
+                var model = new MaintenanceReminderModel
                 {
-                    UserName = "Usuario de Prueba Real",
-                    SetPasswordUrl = "https://sismeing.com/set-password?token=12345",
-                    Email = email
+                    EmpresaCliente = "Banco Bolivariano",
+                    TipoSistema = "Aire Acondicionado Central",
+                    Equipos = new List<EquipoInfo>
+                                {
+                                    new EquipoInfo { Nombre = "Compresor Unidad A", ProximaFecha = DateTime.Now.AddDays(5) },
+                                    new EquipoInfo { Nombre = "Chiller Principal", ProximaFecha = DateTime.Now.AddDays(7) }
+                                }
                 };
 
-                await _emailService.SendAsync(email, "Bienvenido a Sismeing", "Bienvenida", model);
+                await _emailService.SendAsync(email, "Recordatorio de Mantenimiento", "RecordatorioMantenimiento", model);
                 return Ok($"Email enviado correctamente a {email}");
             }
             catch (Exception ex)

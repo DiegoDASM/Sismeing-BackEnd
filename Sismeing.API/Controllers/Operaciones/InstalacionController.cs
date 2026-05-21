@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
-using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
+using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
@@ -12,11 +11,11 @@ namespace Sismeing.API.Controllers.Operaciones
     [Route("api/[controller]")]
     public class InstalacionController : Controller
     {
-        private readonly SupaBaseDBcontext _context;
+        private readonly IInstalacionService _instalacionService;
 
-        public InstalacionController(SupaBaseDBcontext context)
+        public InstalacionController(IInstalacionService instalacionService)
         {
-            _context = context;
+            _instalacionService = instalacionService;
         }
 
         [HttpGet]
@@ -24,7 +23,7 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                var data = await _context.Instalaciones.ToListAsync();
+                var data = await _instalacionService.GetAllAsync();
                 return Ok(new JsonResponse<IEnumerable<Instalacion>>(data));
             }
             catch (Exception ex)
@@ -38,7 +37,7 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                var data = await _context.Instalaciones.FindAsync(id);
+                var data = await _instalacionService.GetByIdAsync(id);
                 if (data == null)
                     return NotFound(new JsonResponse<Instalacion>(null, "No encontrado", ResponseStatus.error));
                 return Ok(new JsonResponse<Instalacion>(data));
@@ -54,14 +53,10 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                item.FechaRegistro = DateTime.UtcNow;
-                item.Activo = true;
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _instalacionService.CreateAsync(item, userEmail);
 
-                _context.Instalaciones.Add(item);
-                await _context.SaveChangesAsync();
-
-                return Ok(new JsonResponse<Instalacion>(item));
+                return Ok(new JsonResponse<Instalacion>(result));
             }
             catch (Exception ex)
             {
@@ -77,14 +72,11 @@ namespace Sismeing.API.Controllers.Operaciones
                 if (id != item.Id)
                     return BadRequest(new JsonResponse<bool>(false, "El ID no coincide", ResponseStatus.error));
 
-                var existingItem = await _context.Instalaciones.FindAsync(id);
-                if (existingItem == null)
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _instalacionService.UpdateAsync(id, item, userEmail);
+                
+                if (!success)
                     return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
-
-                _context.Entry(existingItem).CurrentValues.SetValues(item);
-                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaModificacion = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
 
                 return Ok(new JsonResponse<bool>(true));
             }
@@ -99,14 +91,11 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                var existingItem = await _context.Instalaciones.FindAsync(id);
-                if (existingItem == null)
-                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _instalacionService.DeleteAsync(id, userEmail);
 
-                existingItem.Activo = false;
-                existingItem.UsuarioEliminacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaEliminacion = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
 
                 return Ok(new JsonResponse<bool>(true));
             }

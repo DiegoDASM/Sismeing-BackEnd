@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
-using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
 using Sismeing.Service.Interfaces.Operaciones;
 
@@ -13,11 +11,11 @@ namespace Sismeing.API.Controllers.Operaciones
     [Route("api/[controller]")]
     public class Area_EmpresaController : Controller
     {
-        private readonly SupaBaseDBcontext _context;
+        private readonly IArea_EmpresaService _areaEmpresaService;
 
-        public Area_EmpresaController(SupaBaseDBcontext context)
+        public Area_EmpresaController(IArea_EmpresaService areaempresaservice)
         {
-            _context = context;
+            _areaEmpresaService = areaempresaservice;
         }
 
         [HttpGet]
@@ -25,7 +23,7 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                var data = await _context.AreasEmpresa.ToListAsync();
+                var data = await _areaEmpresaService.GetAllAsync();
                 return Ok(new JsonResponse<IEnumerable<Area_Empresa>>(data));
             }
             catch (Exception ex)
@@ -39,12 +37,9 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
-                // CAMBIO AQUÍ: Buscar directo en la DB
-                var data = await _context.AreasEmpresa.FindAsync(id);
-
+                var data = await _areaEmpresaService.GetByIdAsync(id);
                 if (data == null)
                     return NotFound(new JsonResponse<Area_Empresa>(null, "No encontrado", ResponseStatus.error));
-
                 return Ok(new JsonResponse<Area_Empresa>(data));
             }
             catch (Exception ex)
@@ -53,28 +48,21 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
-
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] Area_Empresa item)
         {
             try
             {
-                item.UsuarioRegistro = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                item.FechaRegistro = DateTime.UtcNow;
-                item.Activo = true;
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _areaEmpresaService.CreateAsync(item, userEmail);
 
-                // CAMBIO AQUÍ: Añadir a la tabla y guardar
-                _context.AreasEmpresa.Add(item);
-                await _context.SaveChangesAsync();
-
-                return Ok(new JsonResponse<Area_Empresa>(item));
+                return Ok(new JsonResponse<Area_Empresa>(result));
             }
             catch (Exception ex)
             {
                 return BadRequest(new JsonResponse<Area_Empresa>(null, ex.Message, ResponseStatus.error));
             }
         }
-
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Update(int id, [FromBody] Area_Empresa item)
@@ -84,18 +72,11 @@ namespace Sismeing.API.Controllers.Operaciones
                 if (id != item.Id)
                     return BadRequest(new JsonResponse<bool>(false, "El ID no coincide", ResponseStatus.error));
 
-                // CAMBIO AQUÍ: Buscar, actualizar y guardar
-                var existingItem = await _context.AreasEmpresa.FindAsync(id);
-                if (existingItem == null)
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _areaEmpresaService.UpdateAsync(id, item, userEmail);
+                
+                if (!success)
                     return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
-
-                // Copiar los valores nuevos al objeto existente
-                _context.Entry(existingItem).CurrentValues.SetValues(item);
-
-                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaModificacion = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
 
                 return Ok(new JsonResponse<bool>(true));
             }
@@ -104,23 +85,17 @@ namespace Sismeing.API.Controllers.Operaciones
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
             }
         }
-
 
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete(int id)
         {
             try
             {
-                // CAMBIO AQUÍ: Buscar, cambiar estado y guardar
-                var existingItem = await _context.AreasEmpresa.FindAsync(id);
-                if (existingItem == null)
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _areaEmpresaService.DeleteAsync(id, userEmail);
+
+                if (!success)
                     return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
-
-                existingItem.Activo = false; // Eliminación lógica
-                existingItem.UsuarioModificacion = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                existingItem.FechaModificacion = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
 
                 return Ok(new JsonResponse<bool>(true));
             }
@@ -129,6 +104,6 @@ namespace Sismeing.API.Controllers.Operaciones
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
             }
         }
-
     }
 }
+

@@ -1,17 +1,46 @@
-@model Sismeing.Domain.Plantillas.MaintenanceReminderModel
-<table width="100%" style="font-family: sans-serif;">
-    <tr>
-        <td style="border-left: 4px solid #CC0000; padding: 20px; background-color: #f9f9f9;">
-            <h3 style="color: #CC0000;">⚠️ Recordatorio de Mantenimiento Próximo</h3>
-            <p>Estimado cliente de <strong>@Model.EmpresaCliente</strong>,</p>
-            <p>Le informamos que se acerca la fecha programada para el mantenimiento técnico de sus equipos:</p>
-            <ul>
-                @foreach(var equipo in Model.Equipos) {
-                    <li><strong>@equipo.Nombre</strong> (Síncope: @equipo.ProximaFecha.ToString("dd/MM/yyyy"))</li>
-                }
-            </ul>
-            <p>Realizar el mantenimiento a tiempo garantiza la eficiencia energética y la vida útil de sus sistemas de @Model.TipoSistema (Aire Acondicionado / Vapor / Contra Incendios).</p>
-            <p>Nuestro equipo técnico se pondrá en contacto pronto, o puede agendar directamente respondiendo a este correo.</p>
-        </td>
-    </tr>
-</table>
+@model Sismeing.Domain.Models.Emails.MaintenanceReminderModel
+
+<div style="max-width: 600px; margin: auto; border: 1px solid #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ffffff;">
+    <div style="background: #1a1c21; padding: 25px; text-align: center; border-bottom: 5px solid #CC0000;">
+        <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 300; letter-spacing: 2px;">
+            SISMEING <span style="color: #CC0000; font-weight: bold;">SERVICIOS</span>
+        </h1>
+    </div>
+    
+    <div style="padding: 45px 35px; text-align: center;">
+        <img src="https://img.icons8.com/ios-filled/100/CC0000/calendar-check.png" width="60" style="margin-bottom: 25px;" />
+        
+        <h2 style="color: #2c3e50; margin: 0; font-size: 24px;">Notificación de Mantenimiento</h2>
+        
+        <div style="color: #546e7a; line-height: 1.8; margin: 20px 0; font-size: 16px;">
+            <p>Estimados amigos de <strong>@Model.EmpresaCliente</strong>:</p>
+            <p>
+                Mantener sus equipos en óptimas condiciones no solo <strong>reduce significativamente el riesgo de daños inesperados</strong>, sino que garantiza la continuidad de sus operaciones. 
+            </p>
+            <p>
+                Se acerca la fecha programada para el servicio técnico de sus sistemas de <strong>@Model.TipoSistema</strong>. Para evitar contratiempos, agendar una cita ahora sería una excelente idea para asegurar la disponibilidad de nuestros técnicos especializados.
+            </p>
+        </div>
+
+        <a href="https://sismeing.com/scheduler?cliente=@Model.EmpresaCliente" 
+           style="background-color: #CC0000; color: #ffffff; padding: 22px; text-decoration: none; border-radius: 6px; font-weight: bold; display: block; margin: 35px 0; font-size: 18px; box-shadow: 0 4px 12px rgba(204, 0, 0, 0.2);">
+            Agendar Cita en el Calendario
+        </a>
+
+        <div style="text-align: left; border-top: 1px solid #eceff1; padding-top: 25px; background-color: #fcfcfc; padding: 20px; border-radius: 4px;">
+            <p style="font-size: 14px; color: #1a1c21; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                Equipos detectados para revisión:
+            </p>
+            @foreach(var equipo in Model.Equipos) {
+                <div style="font-size: 14px; color: #455a64; margin: 8px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f1f1; padding-bottom: 5px;">
+                    <span>✅ @equipo.Nombre</span>
+                    <span style="color: #CC0000; font-weight: bold;">@equipo.ProximaFecha.ToString("dd/MM/yyyy")</span>
+                </div>
+            }
+        </div>
+
+        <p style="margin-top: 30px; font-size: 13px; color: #90a4ae;">
+            Este es un servicio de trazabilidad automática de <strong>Sismeing S.A.</strong> para el cuidado de sus activos industriales.
+        </p>
+    </div>
+</div>

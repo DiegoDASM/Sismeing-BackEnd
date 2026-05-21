@@ -9,6 +9,9 @@ using Sismeing.Service.Interfaces.Catalogo;
 using Sismeing.Service.Interfaces.Operaciones;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Services.Email;
+using Sismeing.Service.Services.Operaciones;
+using Sismeing.Service.Services.Catalogo;
+using Sismeing.API.Extensions;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Conexión a la base de datos Supabase (PostgreSQL) ────────────────────────
@@ -63,9 +66,8 @@ builder.Services.AddCors(options =>
 
 // ── Dependency Injection (Servicios) ──────────────────────────────────────────
 
-// Comunes (Correos)
-builder.Services.AddScoped<IEmailPreviewService, EmailPreviewService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+// Registramos todos los servicios de la aplicación usando el Extension Method
+builder.Services.AddApplicationServices();
 
 // ── Controllers & Swagger ─────────────────────────────────────────────────────
 builder.Services.AddControllers()
@@ -161,3 +163,4 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
