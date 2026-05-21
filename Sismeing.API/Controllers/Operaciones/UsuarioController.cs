@@ -5,8 +5,16 @@ using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
 
+using Sismeing.Service;
+
 namespace Sismeing.API.Controllers.Operaciones
 {
+    public class LoginDto
+    {
+        public string CorreoElectronico { get; set; } = null!;
+        public string Contrasena { get; set; } = null!;
+    }
+
     //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
@@ -49,6 +57,36 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        [HttpPost("login")]
+        [AllowAnonymous]
+        public async Task<ActionResult> Login([FromBody] LoginDto credentials)
+        {
+            try
+            {
+                var user = await _context.Usuarios
+                    .Include(u => u.Rol)
+                    .Include(u => u.Empresa)
+                    .FirstOrDefaultAsync(u => u.CorreoElectronico == credentials.CorreoElectronico && u.Contrasena == credentials.Contrasena && u.Activo);
+
+                if (user == null)
+                    return Unauthorized(new JsonResponse<Usuario>(null, "Credenciales incorrectas", ResponseStatus.error));
+
+                // NOTA: Para un entorno real, aquí se generaría el JWT token usando la clave secreta en appsettings.json.
+                // Como solución temporal para que el frontend funcione, devolvemos un token ficticio y los datos del usuario.
+                return Ok(new
+                {
+                    status = "success",
+                    message = "Login exitoso",
+                    token = "fake-jwt-token-replace-with-real-token",
+                    data = user
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<Usuario>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] Usuario item)
         {
@@ -65,7 +103,8 @@ namespace Sismeing.API.Controllers.Operaciones
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<Usuario>(null, ex.Message, ResponseStatus.error));
+                var errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return BadRequest(new JsonResponse<Usuario>(null, errorMsg, ResponseStatus.error));
             }
         }
 
