@@ -1,10 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Sismeing.Domain.Entities.Operaciones;
+using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
 using Sismeing.Service.Interfaces.Operaciones;
-
-using Sismeing.Service;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
@@ -17,13 +22,23 @@ namespace Sismeing.API.Controllers.Operaciones
     //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class UsuarioController : Controller
+    public class UsuarioController : ControllerBase
     {
         private readonly IUsuarioService _usuarioService;
+        private readonly SupaBaseDBcontext _context;
+        private readonly IPasswordHasher<Usuario> _passwordHasher;
+        private readonly IConfiguration _configuration;
 
-        public UsuarioController(IUsuarioService usuarioservice)
+        public UsuarioController(
+            IUsuarioService usuarioService,
+            SupaBaseDBcontext context,
+            IPasswordHasher<Usuario> passwordHasher,
+            IConfiguration configuration)
         {
-            _usuarioService = usuarioservice;
+            _usuarioService = usuarioService;
+            _context = context;
+            _passwordHasher = passwordHasher;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -65,25 +80,48 @@ namespace Sismeing.API.Controllers.Operaciones
                 var user = await _context.Usuarios
                     .Include(u => u.Rol)
                     .Include(u => u.Empresa)
-                    .FirstOrDefaultAsync(u => u.CorreoElectronico == credentials.CorreoElectronico && u.Contrasena == credentials.Contrasena && u.Activo);
+                    .FirstOrDefaultAsync(u => u.CorreoElectronico == credentials.CorreoElectronico && u.Activo);
 
                 if (user == null)
-                    return Unauthorized(new JsonResponse<Usuario>(null, "Credenciales incorrectas", ResponseStatus.error));
+                    return Unauthorized(new JsonResponse<object>((object?)null, "Credenciales incorrectas", ResponseStatus.error));
 
-                // NOTA: Para un entorno real, aquí se generaría el JWT token usando la clave secreta en appsettings.json.
-                // Como solución temporal para que el frontend funcione, devolvemos un token ficticio y los datos del usuario.
-                return Ok(new
-                {
-                    status = "success",
-                    message = "Login exitoso",
-                    token = "fake-jwt-token-replace-with-real-token",
-                    data = user
-                });
+                var verification = _passwordHasher.VerifyHashedPassword(user, user.Contrasena, credentials.Contrasena);
+                if (verification == PasswordVerificationResult.Failed)
+                    return Unauthorized(new JsonResponse<object>((object?)null, "Credenciales incorrectas", ResponseStatus.error));
+
+                var token = GenerateJwtToken(user);
+                return Ok(new JsonResponse<object>(new { token, user }, "Login exitoso"));
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<Usuario>(null, ex.Message, ResponseStatus.error));
+                return BadRequest(new JsonResponse<object>((object?)null, ex.Message, ResponseStatus.error));
             }
+        }
+
+        private string GenerateJwtToken(Usuario user)
+        {
+            var jwtSettings = _configuration.GetSection("JwtSettings");
+            var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
+            var expiresInHours = int.TryParse(jwtSettings["ExpiresInHours"], out var h) ? h : 8;
+
+            var claims = new[]
+            {
+                new Claim("id", user.Id.ToString()),
+                new Claim("email", user.CorreoElectronico),
+                new Claim("rol", user.Rol?.NombreRol ?? ""),
+                new Claim("empresa_id", user.EmpresaId.ToString()),
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddHours(expiresInHours),
+                signingCredentials: new SigningCredentials(
+                    new SymmetricSecurityKey(secretKey),
+                    SecurityAlgorithms.HmacSha256));
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         [HttpPost]

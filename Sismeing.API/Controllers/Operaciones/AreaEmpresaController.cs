@@ -32,6 +32,20 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        [HttpGet("empresa/{empresaId:int}")]
+        public async Task<ActionResult> GetByEmpresaId(int empresaId)
+        {
+            try
+            {
+                var data = await _areaEmpresaService.GetByEmpresaIdAsync(empresaId);
+                return Ok(new JsonResponse<IEnumerable<Area_Empresa>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Area_Empresa>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetById(int id)
         {
