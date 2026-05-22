@@ -22,7 +22,13 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("empresa_id")]
         public int EmpresaId { get; set; }
 
+        [Column("direccion_empresa_id")]
+        public int? DireccionEmpresaId { get; set; }
+
         [ForeignKey("EmpresaId")]
         public virtual Empresa? Empresa { get; set; }
+
+        [ForeignKey("DireccionEmpresaId")]
+        public virtual Direccion_Empresa? DireccionEmpresa { get; set; }
     }
 }

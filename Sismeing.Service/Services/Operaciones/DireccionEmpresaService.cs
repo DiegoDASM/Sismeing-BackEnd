@@ -24,6 +24,13 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.DireccionesEmpresa.FindAsync(id);
         }
 
+        public async Task<IEnumerable<Direccion_Empresa>> GetByEmpresaIdAsync(int empresaId)
+        {
+            return await _context.DireccionesEmpresa
+                .Where(d => d.EmpresaId == empresaId && d.Activo)
+                .ToListAsync();
+        }
+
         public async Task<Direccion_Empresa> CreateAsync(Direccion_Empresa item, string usuarioRegistro)
         {
             item.UsuarioRegistro = usuarioRegistro;

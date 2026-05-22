@@ -27,6 +27,7 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<IEnumerable<Area_Empresa>> GetByEmpresaIdAsync(int empresaId)
         {
             return await _context.AreasEmpresa
+                .Include(a => a.DireccionEmpresa)
                 .Where(a => a.EmpresaId == empresaId && a.Activo)
                 .ToListAsync();
         }

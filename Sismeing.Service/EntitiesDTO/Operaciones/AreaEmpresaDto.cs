@@ -12,5 +12,7 @@ namespace Sismeing.Service.EntitiesDTO.Catalogo
         public string NombreArea { get; set; } = null!;
         public int EmpresaId { get; set; }
         public string? NombreEmpresa { get; set; }
+        public int? DireccionEmpresaId { get; set; }
+        public string? NombreDireccion { get; set; }
     }
 }
