@@ -57,9 +57,19 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.Activo = false;
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
-            
+
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<string?> UpdateLogoAsync(int id, string logoPath)
+        {
+            var empresa = await _context.Empresas.FindAsync(id);
+            if (empresa == null) return null;
+
+            empresa.Logo = logoPath;
+            await _context.SaveChangesAsync();
+            return logoPath;
         }
     }
 }

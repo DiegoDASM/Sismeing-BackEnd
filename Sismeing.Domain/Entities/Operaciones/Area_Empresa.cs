@@ -22,7 +22,7 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("empresa_id")]
         public int EmpresaId { get; set; }
 
-        [Column("direccion_empresa_id")]
+        [Column("direccion_id")]
         public int? DireccionEmpresaId { get; set; }
 
         [ForeignKey("EmpresaId")]

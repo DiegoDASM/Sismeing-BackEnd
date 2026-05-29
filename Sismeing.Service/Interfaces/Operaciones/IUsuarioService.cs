@@ -9,5 +9,7 @@ namespace Sismeing.Service.Interfaces.Operaciones
         Task<Usuario> CreateAsync(Usuario item, string usuarioRegistro);
         Task<bool> UpdateAsync(int id, Usuario item, string usuarioModificacion);
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);
+        Task<bool> UpdatePerfilAsync(int id, string nombre, string apellido, string? telefono, string userEmail);
+        Task<string?> UpdateFotoAsync(int id, string fotoUrl);
     }
 }

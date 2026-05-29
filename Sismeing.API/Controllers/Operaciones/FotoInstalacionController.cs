@@ -12,10 +12,12 @@ namespace Sismeing.API.Controllers.Operaciones
     public class FotoInstalacionController : Controller
     {
         private readonly IFoto_InstalacionService _fotoInstalacionService;
+        private readonly IWebHostEnvironment _env;
 
-        public FotoInstalacionController(IFoto_InstalacionService fotoinstalacionservice)
+        public FotoInstalacionController(IFoto_InstalacionService fotoinstalacionservice, IWebHostEnvironment env)
         {
             _fotoInstalacionService = fotoinstalacionservice;
+            _env = env;
         }
 
         [HttpGet]
@@ -102,6 +104,74 @@ namespace Sismeing.API.Controllers.Operaciones
             catch (Exception ex)
             {
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpGet("instalacion/{instalacionId:int}")]
+        public async Task<ActionResult> GetByInstalacion(int instalacionId)
+        {
+            try
+            {
+                var data = await _fotoInstalacionService.GetByInstalacionIdAsync(instalacionId);
+                return Ok(new JsonResponse<IEnumerable<Foto_Instalacion>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Foto_Instalacion>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("instalacion/{instalacionId:int}/upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult> UploadFotos(int instalacionId, List<IFormFile> files, [FromQuery] string tipo = "inicial")
+        {
+            try
+            {
+                if (files == null || files.Count == 0)
+                    return BadRequest(new JsonResponse<string>(null, "No se proporcionaron archivos", ResponseStatus.error));
+
+                var tipoValido = new[] { "inicial", "final" };
+                if (!tipoValido.Contains(tipo.ToLower()))
+                    return BadRequest(new JsonResponse<string>(null, "El tipo debe ser 'inicial' o 'final'", ResponseStatus.error));
+
+                var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsPath = Path.Combine(webRoot, "uploads", "instalaciones", instalacionId.ToString());
+                Directory.CreateDirectory(uploadsPath);
+
+                var creadas = new List<Foto_Instalacion>();
+
+                foreach (var file in files)
+                {
+                    if (file.Length == 0) continue;
+
+                    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (!allowed.Contains(ext)) continue;
+
+                    var fileName = $"inst_{instalacionId}_{tipo}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}_{Guid.NewGuid():N}{ext}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await file.CopyToAsync(stream);
+
+                    var foto = new Foto_Instalacion
+                    {
+                        InstalacionId = instalacionId,
+                        Url = $"/uploads/instalaciones/{instalacionId}/{fileName}",
+                        Tipo = tipo.ToLower(),
+                    };
+
+                    var created = await _fotoInstalacionService.CreateAsync(foto, userEmail);
+                    creadas.Add(created);
+                }
+
+                return Ok(new JsonResponse<IEnumerable<Foto_Instalacion>>(creadas));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<string>(null, ex.Message, ResponseStatus.error));
             }
         }
     }

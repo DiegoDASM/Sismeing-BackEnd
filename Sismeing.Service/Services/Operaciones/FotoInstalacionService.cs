@@ -24,6 +24,15 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.FotosInstalacion.FindAsync(id);
         }
 
+        public async Task<IEnumerable<Foto_Instalacion>> GetByInstalacionIdAsync(int instalacionId)
+        {
+            return await _context.FotosInstalacion
+                .Where(f => f.InstalacionId == instalacionId && f.Activo)
+                .OrderBy(f => f.Tipo)
+                .ThenBy(f => f.FechaRegistro)
+                .ToListAsync();
+        }
+
         public async Task<Foto_Instalacion> CreateAsync(Foto_Instalacion item, string usuarioRegistro)
         {
             item.UsuarioRegistro = usuarioRegistro;

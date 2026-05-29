@@ -12,10 +12,12 @@ namespace Sismeing.API.Controllers.Operaciones
     public class EmpresaController : Controller
     {
         private readonly IEmpresaService _empresaService;
+        private readonly IWebHostEnvironment _env;
 
-        public EmpresaController(IEmpresaService empresaservice)
+        public EmpresaController(IEmpresaService empresaservice, IWebHostEnvironment env)
         {
             _empresaService = empresaservice;
+            _env = env;
         }
 
         [HttpGet]
@@ -102,6 +104,44 @@ namespace Sismeing.API.Controllers.Operaciones
             catch (Exception ex)
             {
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("{id:int}/upload-logo")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult> UploadLogo(int id, IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return BadRequest(new JsonResponse<string>(null, "No se proporcionó archivo", ResponseStatus.error));
+
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                if (!allowed.Contains(ext))
+                    return BadRequest(new JsonResponse<string>(null, "Formato no válido. Use JPG, PNG, WEBP o GIF", ResponseStatus.error));
+
+                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsPath = Path.Combine(webRoot, "uploads", "logos");
+                Directory.CreateDirectory(uploadsPath);
+
+                var fileName = $"empresa_{id}{ext}";
+                var filePath = Path.Combine(uploadsPath, fileName);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+
+                var logoUrl = $"/uploads/logos/{fileName}";
+                var result = await _empresaService.UpdateLogoAsync(id, logoUrl);
+
+                if (result == null)
+                    return NotFound(new JsonResponse<string>(null, "Empresa no encontrada", ResponseStatus.error));
+
+                return Ok(new JsonResponse<string>(logoUrl));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<string>(null, ex.Message, ResponseStatus.error));
             }
         }
     }

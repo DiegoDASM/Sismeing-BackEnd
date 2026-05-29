@@ -66,9 +66,36 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.Activo = false;
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
-            
+
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> UpdatePerfilAsync(int id, string nombre, string apellido, string? telefono, string userEmail)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null) return false;
+
+            usuario.Nombre = nombre;
+            usuario.Apellido = apellido;
+            usuario.Telefono = telefono;
+            usuario.UsuarioModificacion = userEmail;
+            usuario.FechaModificacion = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<string?> UpdateFotoAsync(int id, string fotoUrl)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null) return null;
+
+            usuario.Foto = fotoUrl;
+            usuario.FechaModificacion = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return fotoUrl;
         }
     }
 }

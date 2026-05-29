@@ -46,6 +46,20 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        [HttpGet("direccion/{direccionId:int}")]
+        public async Task<ActionResult> GetByDireccionId(int direccionId)
+        {
+            try
+            {
+                var data = await _areaEmpresaService.GetByDireccionIdAsync(direccionId);
+                return Ok(new JsonResponse<IEnumerable<Area_Empresa>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Area_Empresa>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetById(int id)
         {

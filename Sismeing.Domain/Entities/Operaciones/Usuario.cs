@@ -44,6 +44,9 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("Contrasena")]
         public string Contrasena { get; set; } = null!;
 
+        [Column("foto")]
+        public string? Foto { get; set; }
+
         [ForeignKey("EmpresaId")]
         public virtual Empresa? Empresa { get; set; }
         [ForeignKey("RolId")]

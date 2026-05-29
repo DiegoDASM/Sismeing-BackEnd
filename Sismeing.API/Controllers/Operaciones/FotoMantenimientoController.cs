@@ -12,10 +12,12 @@ namespace Sismeing.API.Controllers.Operaciones
     public class FotoMantenimientoController : Controller
     {
         private readonly IFoto_MantenimientoService _fotoMantenimientoService;
+        private readonly IWebHostEnvironment _env;
 
-        public FotoMantenimientoController(IFoto_MantenimientoService fotomantenimientoservice)
+        public FotoMantenimientoController(IFoto_MantenimientoService fotomantenimientoservice, IWebHostEnvironment env)
         {
             _fotoMantenimientoService = fotomantenimientoservice;
+            _env = env;
         }
 
         [HttpGet]
@@ -102,6 +104,74 @@ namespace Sismeing.API.Controllers.Operaciones
             catch (Exception ex)
             {
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpGet("mantenimiento/{mantenimientoId:int}")]
+        public async Task<ActionResult> GetByMantenimiento(int mantenimientoId)
+        {
+            try
+            {
+                var data = await _fotoMantenimientoService.GetByMantenimientoIdAsync(mantenimientoId);
+                return Ok(new JsonResponse<IEnumerable<Foto_Mantenimiento>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Foto_Mantenimiento>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("mantenimiento/{mantenimientoId:int}/upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult> UploadFotos(int mantenimientoId, List<IFormFile> files, [FromQuery] string tipo = "inicial")
+        {
+            try
+            {
+                if (files == null || files.Count == 0)
+                    return BadRequest(new JsonResponse<string>(null, "No se proporcionaron archivos", ResponseStatus.error));
+
+                var tipoValido = new[] { "inicial", "final" };
+                if (!tipoValido.Contains(tipo.ToLower()))
+                    return BadRequest(new JsonResponse<string>(null, "El tipo debe ser 'inicial' o 'final'", ResponseStatus.error));
+
+                var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+
+                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var uploadsPath = Path.Combine(webRoot, "uploads", "mantenimientos", mantenimientoId.ToString());
+                Directory.CreateDirectory(uploadsPath);
+
+                var creadas = new List<Foto_Mantenimiento>();
+
+                foreach (var file in files)
+                {
+                    if (file.Length == 0) continue;
+
+                    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (!allowed.Contains(ext)) continue;
+
+                    var fileName = $"mant_{mantenimientoId}_{tipo}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}_{Guid.NewGuid():N}{ext}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await file.CopyToAsync(stream);
+
+                    var foto = new Foto_Mantenimiento
+                    {
+                        MantenimientoId = mantenimientoId,
+                        Url = $"/uploads/mantenimientos/{mantenimientoId}/{fileName}",
+                        Tipo = tipo.ToLower(),
+                    };
+
+                    var created = await _fotoMantenimientoService.CreateAsync(foto, userEmail);
+                    creadas.Add(created);
+                }
+
+                return Ok(new JsonResponse<IEnumerable<Foto_Mantenimiento>>(creadas));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<string>(null, ex.Message, ResponseStatus.error));
             }
         }
     }
