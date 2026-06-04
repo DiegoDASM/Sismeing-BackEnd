@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Service;
+using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.API.Controllers.Operaciones
@@ -12,12 +13,12 @@ namespace Sismeing.API.Controllers.Operaciones
     public class EmpresaController : Controller
     {
         private readonly IEmpresaService _empresaService;
-        private readonly IWebHostEnvironment _env;
+        private readonly ICloudinaryService _cloudinaryService;
 
-        public EmpresaController(IEmpresaService empresaservice, IWebHostEnvironment env)
+        public EmpresaController(IEmpresaService empresaservice, ICloudinaryService cloudinaryService)
         {
             _empresaService = empresaservice;
-            _env = env;
+            _cloudinaryService = cloudinaryService;
         }
 
         [HttpGet]
@@ -121,17 +122,10 @@ namespace Sismeing.API.Controllers.Operaciones
                 if (!allowed.Contains(ext))
                     return BadRequest(new JsonResponse<string>(null, "Formato no válido. Use JPG, PNG, WEBP o GIF", ResponseStatus.error));
 
-                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsPath = Path.Combine(webRoot, "uploads", "logos");
-                Directory.CreateDirectory(uploadsPath);
+                var fileName = $"empresa_{id}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext}";
+                using var stream = file.OpenReadStream();
+                var logoUrl = await _cloudinaryService.UploadImageAsync(stream, fileName, "sismeing/logos");
 
-                var fileName = $"empresa_{id}{ext}";
-                var filePath = Path.Combine(uploadsPath, fileName);
-
-                using var stream = new FileStream(filePath, FileMode.Create);
-                await file.CopyToAsync(stream);
-
-                var logoUrl = $"/uploads/logos/{fileName}";
                 var result = await _empresaService.UpdateLogoAsync(id, logoUrl);
 
                 if (result == null)

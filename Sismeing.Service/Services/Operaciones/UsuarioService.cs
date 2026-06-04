@@ -86,16 +86,5 @@ namespace Sismeing.Service.Services.Operaciones
             return true;
         }
 
-        public async Task<string?> UpdateFotoAsync(int id, string fotoUrl)
-        {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null) return null;
-
-            usuario.Foto = fotoUrl;
-            usuario.FechaModificacion = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-            return fotoUrl;
-        }
     }
 }

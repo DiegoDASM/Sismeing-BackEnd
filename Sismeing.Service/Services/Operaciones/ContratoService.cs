@@ -16,12 +16,20 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<IEnumerable<Contrato>> GetAllAsync()
         {
-            return await _context.Contratos.ToListAsync();
+            return await _context.Contratos
+                .Include(c => c.Empresa)
+                .Include(c => c.TipoTrabajo)
+                .Include(c => c.Encargado)
+                .ToListAsync();
         }
 
         public async Task<Contrato?> GetByIdAsync(int id)
         {
-            return await _context.Contratos.FindAsync(id);
+            return await _context.Contratos
+                .Include(c => c.Empresa)
+                .Include(c => c.TipoTrabajo)
+                .Include(c => c.Encargado)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Contrato> CreateAsync(Contrato item, string usuarioRegistro)

@@ -16,12 +16,22 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<IEnumerable<Instalacion>> GetAllAsync()
         {
-            return await _context.Instalaciones.ToListAsync();
+            return await _context.Instalaciones
+                .Include(i => i.Equipo).ThenInclude(e => e.Marca)
+                .Include(i => i.Area).ThenInclude(a => a.Empresa)
+                .Include(i => i.Tecnico)
+                .Include(i => i.Estado)
+                .ToListAsync();
         }
 
         public async Task<Instalacion?> GetByIdAsync(int id)
         {
-            return await _context.Instalaciones.FindAsync(id);
+            return await _context.Instalaciones
+                .Include(i => i.Equipo).ThenInclude(e => e.Marca)
+                .Include(i => i.Area).ThenInclude(a => a.Empresa)
+                .Include(i => i.Tecnico)
+                .Include(i => i.Estado)
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
 
         public async Task<Instalacion> CreateAsync(Instalacion item, string usuarioRegistro)

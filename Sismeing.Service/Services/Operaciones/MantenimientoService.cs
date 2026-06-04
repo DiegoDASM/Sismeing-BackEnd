@@ -16,12 +16,28 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<IEnumerable<Mantenimiento>> GetAllAsync()
         {
-            return await _context.Mantenimientos.ToListAsync();
+            return await _context.Mantenimientos
+                .Include(m => m.Instalacion)
+                    .ThenInclude(i => i.Equipo)
+                .Include(m => m.Instalacion)
+                    .ThenInclude(i => i.Area).ThenInclude(a => a.Empresa)
+                .Include(m => m.TipoMantenimiento)
+                .Include(m => m.Tecnico)
+                .Include(m => m.Estado)
+                .ToListAsync();
         }
 
         public async Task<Mantenimiento?> GetByIdAsync(int id)
         {
-            return await _context.Mantenimientos.FindAsync(id);
+            return await _context.Mantenimientos
+                .Include(m => m.Instalacion)
+                    .ThenInclude(i => i.Equipo)
+                .Include(m => m.Instalacion)
+                    .ThenInclude(i => i.Area).ThenInclude(a => a.Empresa)
+                .Include(m => m.TipoMantenimiento)
+                .Include(m => m.Tecnico)
+                .Include(m => m.Estado)
+                .FirstOrDefaultAsync(m => m.Id == id);
         }
 
         public async Task<Mantenimiento> CreateAsync(Mantenimiento item, string usuarioRegistro)

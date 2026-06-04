@@ -16,12 +16,20 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<IEnumerable<Visita_Tecnica>> GetAllAsync()
         {
-            return await _context.VisitasTecnicas.ToListAsync();
+            return await _context.VisitasTecnicas
+                .Include(v => v.Empresa)
+                .Include(v => v.Tecnico)
+                .Include(v => v.TipoTrabajo)
+                .ToListAsync();
         }
 
         public async Task<Visita_Tecnica?> GetByIdAsync(int id)
         {
-            return await _context.VisitasTecnicas.FindAsync(id);
+            return await _context.VisitasTecnicas
+                .Include(v => v.Empresa)
+                .Include(v => v.Tecnico)
+                .Include(v => v.TipoTrabajo)
+                .FirstOrDefaultAsync(v => v.Id == id);
         }
 
         public async Task<Visita_Tecnica> CreateAsync(Visita_Tecnica item, string usuarioRegistro)

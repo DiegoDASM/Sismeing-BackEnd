@@ -4,6 +4,7 @@ using Sismeing.Service.Interfaces.Catalogo;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 using Sismeing.Service.Services.Catalogo;
+using Sismeing.Service.Services.Comunes;
 using Sismeing.Service.Services.Email;
 using Sismeing.Service.Services.Operaciones;
 
@@ -13,7 +14,8 @@ namespace Sismeing.API.Extensions
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
-            // ── Comunes (Correos) ──
+            // ── Comunes ──
+            services.AddSingleton<ICloudinaryService, CloudinaryService>();
             services.AddScoped<IEmailPreviewService, EmailPreviewService>();
             services.AddScoped<IEmailService, EmailService>();
 

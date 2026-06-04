@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Service;
+using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.API.Controllers.Operaciones
@@ -12,12 +13,12 @@ namespace Sismeing.API.Controllers.Operaciones
     public class FotoMantenimientoController : Controller
     {
         private readonly IFoto_MantenimientoService _fotoMantenimientoService;
-        private readonly IWebHostEnvironment _env;
+        private readonly ICloudinaryService _cloudinaryService;
 
-        public FotoMantenimientoController(IFoto_MantenimientoService fotomantenimientoservice, IWebHostEnvironment env)
+        public FotoMantenimientoController(IFoto_MantenimientoService fotomantenimientoservice, ICloudinaryService cloudinaryService)
         {
             _fotoMantenimientoService = fotomantenimientoservice;
-            _env = env;
+            _cloudinaryService = cloudinaryService;
         }
 
         [HttpGet]
@@ -137,10 +138,6 @@ namespace Sismeing.API.Controllers.Operaciones
                 var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
 
-                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsPath = Path.Combine(webRoot, "uploads", "mantenimientos", mantenimientoId.ToString());
-                Directory.CreateDirectory(uploadsPath);
-
                 var creadas = new List<Foto_Mantenimiento>();
 
                 foreach (var file in files)
@@ -151,15 +148,15 @@ namespace Sismeing.API.Controllers.Operaciones
                     if (!allowed.Contains(ext)) continue;
 
                     var fileName = $"mant_{mantenimientoId}_{tipo}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}_{Guid.NewGuid():N}{ext}";
-                    var filePath = Path.Combine(uploadsPath, fileName);
+                    var folder = $"sismeing/mantenimientos/{mantenimientoId}";
 
-                    using var stream = new FileStream(filePath, FileMode.Create);
-                    await file.CopyToAsync(stream);
+                    using var stream = file.OpenReadStream();
+                    var url = await _cloudinaryService.UploadImageAsync(stream, fileName, folder);
 
                     var foto = new Foto_Mantenimiento
                     {
                         MantenimientoId = mantenimientoId,
-                        Url = $"/uploads/mantenimientos/{mantenimientoId}/{fileName}",
+                        Url = url,
                         Tipo = tipo.ToLower(),
                     };
 

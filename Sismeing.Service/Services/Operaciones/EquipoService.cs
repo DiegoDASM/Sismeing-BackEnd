@@ -16,12 +16,22 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<IEnumerable<Equipo>> GetAllAsync()
         {
-            return await _context.Equipos.ToListAsync();
+            return await _context.Equipos
+                .Include(e => e.Marca)
+                .Include(e => e.TipoEquipo)
+                .Include(e => e.Modelo)
+                .Include(e => e.Proyecto)
+                .ToListAsync();
         }
 
         public async Task<Equipo?> GetByIdAsync(int id)
         {
-            return await _context.Equipos.FindAsync(id);
+            return await _context.Equipos
+                .Include(e => e.Marca)
+                .Include(e => e.TipoEquipo)
+                .Include(e => e.Modelo)
+                .Include(e => e.Proyecto)
+                .FirstOrDefaultAsync(e => e.Id == id);
         }
 
         public async Task<Equipo> CreateAsync(Equipo item, string usuarioRegistro)

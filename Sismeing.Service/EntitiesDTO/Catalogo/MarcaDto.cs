@@ -9,6 +9,6 @@ namespace Sismeing.Service.EntitiesDTO.Catalogo
     public class MarcaDto
     {
         public int Id { get; set; }
-        public string NombreMarca { get; set; } = null!;
+        public string Nombre { get; set; } = null!;
     }
 }

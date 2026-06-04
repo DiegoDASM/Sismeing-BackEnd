@@ -28,20 +28,17 @@ namespace Sismeing.API.Controllers.Operaciones
         private readonly SupaBaseDBcontext _context;
         private readonly IPasswordHasher<Usuario> _passwordHasher;
         private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _env;
 
         public UsuarioController(
             IUsuarioService usuarioService,
             SupaBaseDBcontext context,
             IPasswordHasher<Usuario> passwordHasher,
-            IConfiguration configuration,
-            IWebHostEnvironment env)
+            IConfiguration configuration)
         {
             _usuarioService = usuarioService;
             _context = context;
             _passwordHasher = passwordHasher;
             _configuration = configuration;
-            _env = env;
         }
 
         [HttpGet]
@@ -242,42 +239,5 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
-        [HttpPost("{id:int}/upload-foto")]
-        [Consumes("multipart/form-data")]
-        public async Task<ActionResult> UploadFoto(int id, IFormFile file)
-        {
-            try
-            {
-                if (file == null || file.Length == 0)
-                    return BadRequest(new JsonResponse<string>(null, "No se proporcionó archivo", ResponseStatus.error));
-
-                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-                if (!allowed.Contains(ext))
-                    return BadRequest(new JsonResponse<string>(null, "Formato no válido. Use JPG, PNG, WEBP o GIF", ResponseStatus.error));
-
-                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                var uploadsPath = Path.Combine(webRoot, "uploads", "avatares");
-                Directory.CreateDirectory(uploadsPath);
-
-                var fileName = $"usuario_{id}{ext}";
-                var filePath = Path.Combine(uploadsPath, fileName);
-
-                using var stream = new FileStream(filePath, FileMode.Create);
-                await file.CopyToAsync(stream);
-
-                var fotoUrl = $"/uploads/avatares/{fileName}";
-                var result = await _usuarioService.UpdateFotoAsync(id, fotoUrl);
-
-                if (result == null)
-                    return NotFound(new JsonResponse<string>(null, "Usuario no encontrado", ResponseStatus.error));
-
-                return Ok(new JsonResponse<string>(fotoUrl));
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new JsonResponse<string>(null, ex.Message, ResponseStatus.error));
-            }
-        }
     }
 }

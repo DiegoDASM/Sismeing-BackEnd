@@ -16,6 +16,6 @@ namespace Sismeing.Domain.Entities.Catalogo
         [Column("id")]
         public int Id { get; set; }
         [Column("equipo")]
-        public string Equipo { get; set; } = null!;
+        public string Nombre { get; set; } = null!;
     }
 }
