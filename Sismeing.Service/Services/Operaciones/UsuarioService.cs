@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
+using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.Service.Services.Operaciones
@@ -10,11 +11,14 @@ namespace Sismeing.Service.Services.Operaciones
     {
         private readonly SupaBaseDBcontext _context;
         private readonly IPasswordHasher<Usuario> _passwordHasher;
+        private readonly IAuditoriaService _auditoriaService;
 
-        public UsuarioService(SupaBaseDBcontext context, IPasswordHasher<Usuario> passwordHasher)
+
+        public UsuarioService(SupaBaseDBcontext context, IPasswordHasher<Usuario> passwordHasher, IAuditoriaService auditoriaService)
         {
             _context = context;
             _passwordHasher = passwordHasher;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<IEnumerable<Usuario>> GetAllAsync()
@@ -35,9 +39,10 @@ namespace Sismeing.Service.Services.Operaciones
                 item.Contrasena = _passwordHasher.HashPassword(item, item.Contrasena);
             }
 
+            item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
-            item.Activo = true;
+            item.IpRegistro = _auditoriaService.ObtenerIp();
 
             _context.Usuarios.Add(item);
             await _context.SaveChangesAsync();
@@ -53,7 +58,8 @@ namespace Sismeing.Service.Services.Operaciones
             _context.Entry(existingItem).CurrentValues.SetValues(item);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
-            
+            existingItem.IpModificacion = _auditoriaService.ObtenerIp();
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -66,6 +72,7 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.Activo = false;
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
+            existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
 
             await _context.SaveChangesAsync();
             return true;
@@ -81,10 +88,22 @@ namespace Sismeing.Service.Services.Operaciones
             usuario.Telefono = telefono;
             usuario.UsuarioModificacion = userEmail;
             usuario.FechaModificacion = DateTime.UtcNow;
+            usuario.IpModificacion = _auditoriaService.ObtenerIp();
 
             await _context.SaveChangesAsync();
             return true;
         }
 
+        public async Task<string?> UpdateFotoAsync(int id, string fotoUrl)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null) return null;
+
+
+            usuario.FechaModificacion = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return fotoUrl;
+        }
     }
 }

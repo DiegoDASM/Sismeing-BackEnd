@@ -21,6 +21,9 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<SupaBaseDBcontext>(options =>
     options.UseNpgsql(connectionString));
 
+// Añadir en Program.cs junto a builder.Services
+builder.Services.AddHttpContextAccessor();
+
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]

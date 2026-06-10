@@ -18,6 +18,8 @@ namespace Sismeing.API.Extensions
             services.AddSingleton<ICloudinaryService, CloudinaryService>();
             services.AddScoped<IEmailPreviewService, EmailPreviewService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IAuditoriaService, AuditoriaService>();
+
 
             // ── Operaciones ──
             services.AddScoped<IInstalacionService, InstalacionService>();

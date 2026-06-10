@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
+using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.Service.Services.Operaciones
@@ -8,10 +9,12 @@ namespace Sismeing.Service.Services.Operaciones
     public class AreaEmpresaService : IArea_EmpresaService
     {
         private readonly SupaBaseDBcontext _context;
+        private readonly IAuditoriaService _auditoriaService;
 
-        public AreaEmpresaService(SupaBaseDBcontext context)
+        public AreaEmpresaService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
         {
             _context = context;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<IEnumerable<Area_Empresa>> GetAllAsync()
@@ -41,9 +44,10 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<Area_Empresa> CreateAsync(Area_Empresa item, string usuarioRegistro)
         {
+            item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
-            item.Activo = true;
+            item.IpRegistro = _auditoriaService.ObtenerIp();
 
             _context.AreasEmpresa.Add(item);
             await _context.SaveChangesAsync();
@@ -59,7 +63,8 @@ namespace Sismeing.Service.Services.Operaciones
             _context.Entry(existingItem).CurrentValues.SetValues(item);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
-            
+            existingItem.IpModificacion = _auditoriaService.ObtenerIp();
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -72,7 +77,8 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.Activo = false;
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
-            
+            existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
+
             await _context.SaveChangesAsync();
             return true;
         }

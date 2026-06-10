@@ -2,12 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Catalogo;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Catalogo;
+using Sismeing.Service.Interfaces.Comunes;
 
 namespace Sismeing.Service.Services.Catalogo
 {
     public class Tipo_MantenimientoService : ITipo_MantenimientoService
     {
         private readonly SupaBaseDBcontext _context;
+        private readonly IAuditoriaService _auditoriaService;
 
         public Tipo_MantenimientoService(SupaBaseDBcontext context)
         {
@@ -26,9 +28,10 @@ namespace Sismeing.Service.Services.Catalogo
 
         public async Task<Tipo_Mantenimiento> CreateAsync(Tipo_Mantenimiento item, string usuarioRegistro)
         {
+            item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
-            item.Activo = true;
+            item.IpRegistro = _auditoriaService.ObtenerIp();
 
             _context.TiposMantenimiento.Add(item);
             await _context.SaveChangesAsync();
@@ -44,7 +47,8 @@ namespace Sismeing.Service.Services.Catalogo
             _context.Entry(existingItem).CurrentValues.SetValues(item);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
-            
+            existingItem.IpModificacion = _auditoriaService.ObtenerIp();
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -57,6 +61,7 @@ namespace Sismeing.Service.Services.Catalogo
             existingItem.Activo = false;
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
+            existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
             
             await _context.SaveChangesAsync();
             return true;
