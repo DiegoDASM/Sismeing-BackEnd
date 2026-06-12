@@ -3,6 +3,7 @@ using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
+using Sismeing.Service.Services.Comunes;
 
 namespace Sismeing.Service.Services.Operaciones
 {
@@ -10,11 +11,13 @@ namespace Sismeing.Service.Services.Operaciones
     {
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
+        private readonly INotificacionService _notificacionService;
 
-        public InstalacionService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
+        public InstalacionService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, INotificacionService notificacionService)
         {
             _context = context;
             _auditoriaService = auditoriaService;
+            _notificacionService = notificacionService;
         }
 
         public async Task<IEnumerable<Instalacion>> GetAllAsync()
@@ -37,8 +40,15 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
 
+        private static void NormalizarFechas(Instalacion item)
+        {
+            item.FechaInicio = EntityUpdateHelper.AsegurarUtc(item.FechaInicio);
+            item.FechaFin = EntityUpdateHelper.AsegurarUtc(item.FechaFin);
+        }
+
         public async Task<Instalacion> CreateAsync(Instalacion item, string usuarioRegistro)
         {
+            NormalizarFechas(item);
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -55,12 +65,43 @@ namespace Sismeing.Service.Services.Operaciones
             var existingItem = await _context.Instalaciones.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var estadoAnteriorId = existingItem.EstadoId;
+
+            NormalizarFechas(item);
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();
-            
+
             await _context.SaveChangesAsync();
+
+            // Notificación in-app al técnico cuando cambia el estado
+            if (existingItem.EstadoId != estadoAnteriorId)
+            {
+                try
+                {
+                    var estado = await _context.Estados.FindAsync(existingItem.EstadoId);
+                    var nombreEstado = estado?.NombreEstado ?? "Actualizada";
+                    var informe = string.IsNullOrEmpty(existingItem.NumeroInforme) ? $"#{existingItem.Id}" : existingItem.NumeroInforme;
+
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = existingItem.TecnicoId,
+                        Titulo = $"Instalación {nombreEstado}",
+                        Mensaje = $"La instalación {informe} cambió de estado a \"{nombreEstado}\".",
+                        Tipo = NotificacionService.TipoPorEstado(nombreEstado),
+                        Origen = "instalacion",
+                        ReferenciaId = existingItem.Id,
+                    }, usuarioModificacion);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error creando notificación de instalación: {ex.GetBaseException().Message}");
+                }
+            }
+
             return true;
         }
 
@@ -73,7 +114,7 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
             existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
-            
+
             await _context.SaveChangesAsync();
             return true;
         }

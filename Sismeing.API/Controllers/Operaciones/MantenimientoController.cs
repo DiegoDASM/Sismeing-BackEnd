@@ -60,7 +60,7 @@ namespace Sismeing.API.Controllers.Operaciones
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<Mantenimiento>(null, ex.Message, ResponseStatus.error));
+                return BadRequest(new JsonResponse<Mantenimiento>(null, ex.GetBaseException().Message, ResponseStatus.error));
             }
         }
 
@@ -82,7 +82,7 @@ namespace Sismeing.API.Controllers.Operaciones
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+                return BadRequest(new JsonResponse<bool>(false, ex.GetBaseException().Message, ResponseStatus.error));
             }
         }
 

@@ -5,6 +5,7 @@ using Sismeing.Domain.Enums;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
+using Sismeing.Service.Services.Comunes;
 
 namespace Sismeing.Service.Services.Operaciones
 {
@@ -13,12 +14,14 @@ namespace Sismeing.Service.Services.Operaciones
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly INotificacionService _notificacionService;
 
-        public MantenimientoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, IServiceScopeFactory scopeFactory)
+        public MantenimientoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, IServiceScopeFactory scopeFactory, INotificacionService notificacionService)
         {
             _context = context;
             _auditoriaService = auditoriaService;
             _scopeFactory = scopeFactory;
+            _notificacionService = notificacionService;
         }
 
         public async Task<IEnumerable<Mantenimiento>> GetAllAsync()
@@ -47,8 +50,16 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
+        private static void NormalizarFechas(Mantenimiento item)
+        {
+            item.FechaInicio = EntityUpdateHelper.AsegurarUtc(item.FechaInicio);
+            item.FechaFin = EntityUpdateHelper.AsegurarUtc(item.FechaFin);
+            item.FechaProximo = EntityUpdateHelper.AsegurarUtc(item.FechaProximo);
+        }
+
         public async Task<Mantenimiento> CreateAsync(Mantenimiento item, string usuarioRegistro)
         {
+            NormalizarFechas(item);
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -56,6 +67,28 @@ namespace Sismeing.Service.Services.Operaciones
 
             _context.Mantenimientos.Add(item);
             await _context.SaveChangesAsync();
+
+            // Notificación in-app: el supervisor debe revisar el nuevo servicio
+            try
+            {
+                var informe = string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme;
+                if (item.SupervisorId.HasValue)
+                {
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = item.SupervisorId.Value,
+                        Titulo = "Servicio Pendiente de Revisión",
+                        Mensaje = $"El mantenimiento {informe} requiere revisión y aprobación del supervisor.",
+                        Tipo = "pendiente",
+                        Origen = "mantenimiento",
+                        ReferenciaId = item.Id,
+                    }, usuarioRegistro);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creando notificación de mantenimiento: {ex.GetBaseException().Message}");
+            }
 
             if (item.EnviarCorreoRecordatorio)
             {
@@ -66,7 +99,7 @@ namespace Sismeing.Service.Services.Operaciones
                         using var scope = _scopeFactory.CreateScope();
                         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                         var dbContext = scope.ServiceProvider.GetRequiredService<SupaBaseDBcontext>();
-                        
+
                         // Por ahora lo enviamos al encargado o al técnico.
                         // Esto se puede cambiar si necesitas enviárselo a la Empresa.
                         var targetUserId = item.EncargadoId ?? item.TecnicoId;
@@ -92,12 +125,51 @@ namespace Sismeing.Service.Services.Operaciones
             var existingItem = await _context.Mantenimientos.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var estadoAnteriorId = existingItem.EstadoId;
+
+            NormalizarFechas(item);
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();
-            
+
             await _context.SaveChangesAsync();
+
+            // Notificación in-app al técnico (y encargado) cuando cambia el estado
+            if (existingItem.EstadoId != estadoAnteriorId)
+            {
+                try
+                {
+                    var estado = await _context.Estados.FindAsync(existingItem.EstadoId);
+                    var nombreEstado = estado?.NombreEstado ?? "Actualizado";
+                    var tipo = NotificacionService.TipoPorEstado(nombreEstado);
+                    var informe = string.IsNullOrEmpty(existingItem.NumeroInforme) ? $"#{existingItem.Id}" : existingItem.NumeroInforme;
+
+                    var destinatarios = new List<int> { existingItem.TecnicoId };
+                    if (existingItem.EncargadoId.HasValue && existingItem.EncargadoId.Value != existingItem.TecnicoId)
+                        destinatarios.Add(existingItem.EncargadoId.Value);
+
+                    foreach (var usuarioId in destinatarios)
+                    {
+                        await _notificacionService.CreateAsync(new Notificacion
+                        {
+                            UsuarioId = usuarioId,
+                            Titulo = $"Mantenimiento {nombreEstado}",
+                            Mensaje = $"El mantenimiento {informe} cambió de estado a \"{nombreEstado}\".",
+                            Tipo = tipo,
+                            Origen = "mantenimiento",
+                            ReferenciaId = existingItem.Id,
+                        }, usuarioModificacion);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error creando notificación de mantenimiento: {ex.GetBaseException().Message}");
+                }
+            }
+
             return true;
         }
 
@@ -110,7 +182,7 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.UsuarioEliminacion = usuarioEliminacion;
             existingItem.FechaEliminacion = DateTime.UtcNow;
             existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
-            
+
             await _context.SaveChangesAsync();
             return true;
         }
