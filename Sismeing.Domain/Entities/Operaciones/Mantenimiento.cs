@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -55,6 +55,9 @@ namespace Sismeing.Domain.Entities.Operaciones
 
         [Column("numero_informe")]
         public string? NumeroInforme { get; set; }
+
+        [NotMapped]
+        public bool EnviarCorreoRecordatorio { get; set; }
 
         [ForeignKey("InstalacionId")]
         public virtual Instalacion? Instalacion { get; set; }

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Sismeing.Domain.Entities.Operaciones;
+using Sismeing.Domain.Enums;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
@@ -10,11 +12,13 @@ namespace Sismeing.Service.Services.Operaciones
     {
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public MantenimientoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
+        public MantenimientoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, IServiceScopeFactory scopeFactory)
         {
             _context = context;
             _auditoriaService = auditoriaService;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<IEnumerable<Mantenimiento>> GetAllAsync()
@@ -52,6 +56,33 @@ namespace Sismeing.Service.Services.Operaciones
 
             _context.Mantenimientos.Add(item);
             await _context.SaveChangesAsync();
+
+            if (item.EnviarCorreoRecordatorio)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                        var dbContext = scope.ServiceProvider.GetRequiredService<SupaBaseDBcontext>();
+                        
+                        // Por ahora lo enviamos al encargado o al técnico.
+                        // Esto se puede cambiar si necesitas enviárselo a la Empresa.
+                        var targetUserId = item.EncargadoId ?? item.TecnicoId;
+                        var usuarioDestino = await dbContext.Usuarios.FindAsync(targetUserId);
+
+                        if (usuarioDestino != null)
+                        {
+                            await emailService.EnviarCorreoPredefinidoAsync(TipoCorreo.RecordatorioMantenimiento, usuarioDestino);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error programando correo recordatorio: {ex.Message}");
+                    }
+                });
+            }
 
             return item;
         }

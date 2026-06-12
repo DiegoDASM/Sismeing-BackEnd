@@ -2,6 +2,9 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
+using Sismeing.Domain.Entities.Operaciones;
+using Sismeing.Domain.Enums;
+using Sismeing.Domain.Models.Emails;
 using Sismeing.Service.Interfaces.Comunes;
 
 namespace Sismeing.Service.Services.Email
@@ -93,6 +96,48 @@ namespace Sismeing.Service.Services.Email
             await client.AuthenticateAsync(senderEmail, pass);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
+        }
+
+        public async Task EnviarCorreoPredefinidoAsync(TipoCorreo tipo, Usuario usuario, string? tokenAdicional = null)
+        {
+            try
+            {
+                var frontendUrl = _config["FrontendUrl"] ?? "http://localhost:5173";
+                
+                switch (tipo)
+                {
+                    case TipoCorreo.Bienvenida:
+                        var setPasswordUrl = $"{frontendUrl}/restablecer-password?email={Uri.EscapeDataString(usuario.CorreoElectronico)}";
+                        var welcomeModel = new WelcomeModel
+                        {
+                            UserName = $"{usuario.Nombre} {usuario.Apellido}",
+                            Email = usuario.CorreoElectronico,
+                            SetPasswordUrl = setPasswordUrl
+                        };
+
+                        await SendAsync(
+                            usuario.CorreoElectronico,
+                            "Bienvenido a Sismeing",
+                            "Bienvenida", // <-- Aquí estaba el error (tenía .cshtml)
+                            welcomeModel);
+                        break;
+
+                    case TipoCorreo.RestablecerPassword:
+                        // Implementación futura
+                        // var resetUrl = $"{frontendUrl}/reset-password?token={tokenAdicional}";
+                        // await SendAsync(usuario.CorreoElectronico, "Restablecer Contraseña", "RestablecerPassword", new ResetPasswordModel { ... });
+                        break;
+
+                    case TipoCorreo.RecordatorioMantenimiento:
+                        // Implementación futura
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Temporalmente lanzamos el error para que rompa y lo puedas ver en la pantalla o en Swagger
+                throw new Exception($"Fallo al enviar correo: {ex.Message}", ex);
+            }
         }
 
         public async Task<object> TestSmtpConnectionAsync()
