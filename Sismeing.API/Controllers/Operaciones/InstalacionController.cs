@@ -104,5 +104,24 @@ namespace Sismeing.API.Controllers.Operaciones
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
             }
         }
+
+        [HttpPatch("{id:int}/aprobar")]
+        public async Task<ActionResult> Aprobar(int id)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _instalacionService.AprobarAsync(id, userEmail);
+
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
     }
 }

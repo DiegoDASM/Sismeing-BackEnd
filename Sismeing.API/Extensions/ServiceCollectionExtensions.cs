@@ -34,6 +34,8 @@ namespace Sismeing.API.Extensions
             services.AddScoped<IMantenimientoService, MantenimientoService>();
             services.AddScoped<IFoto_MantenimientoService, FotoMantenimientoService>();
             services.AddScoped<IVisita_TecnicaService, VisitaTecnicaService>();
+            services.AddScoped<IFoto_VisitaTecnicaService, FotoVisitaTecnicaService>();
+            services.AddScoped<IReporteService, ReporteService>();
             services.AddScoped<IMedicionService, MedicionService>();
             services.AddScoped<INotificacionService, NotificacionService>();
 

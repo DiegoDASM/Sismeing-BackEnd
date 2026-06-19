@@ -48,6 +48,20 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        [HttpGet("informe/{informeId:int}/equipo/{equipoId:int}")]
+        public async Task<ActionResult> GetByInforme(int informeId, int equipoId)
+        {
+            try
+            {
+                var data = await _medicionService.GetByInformeAsync(informeId, equipoId);
+                return Ok(new JsonResponse<IEnumerable<Medicion>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Medicion>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] Medicion item)
         {
@@ -61,6 +75,39 @@ namespace Sismeing.API.Controllers.Operaciones
             catch (Exception ex)
             {
                 return BadRequest(new JsonResponse<Medicion>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("batch")]
+        public async Task<ActionResult> CreateBatch([FromBody] List<Medicion> items)
+        {
+            try
+            {
+                if (items == null || items.Count == 0)
+                    return BadRequest(new JsonResponse<IEnumerable<Medicion>>(null, "No se proporcionaron mediciones", ResponseStatus.error));
+
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _medicionService.CreateBatchAsync(items, userEmail);
+                return Ok(new JsonResponse<IEnumerable<Medicion>>(result));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Medicion>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("informe/{informeId:int}/equipo/{equipoId:int}")]
+        public async Task<ActionResult> ReemplazarPorInforme(int informeId, int equipoId, [FromBody] List<Medicion> items)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _medicionService.ReemplazarPorInformeAsync(informeId, equipoId, items ?? new List<Medicion>(), userEmail);
+                return Ok(new JsonResponse<IEnumerable<Medicion>>(result));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Medicion>>(null, ex.Message, ResponseStatus.error));
             }
         }
 
