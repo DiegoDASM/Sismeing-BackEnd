@@ -33,6 +33,7 @@ namespace Sismeing.Infrestructura.Persistence
         public DbSet<Mantenimiento> Mantenimientos { get; set; }
         public DbSet<Foto_Mantenimiento> FotosMantenimiento { get; set; }
         public DbSet<Visita_Tecnica> VisitasTecnicas { get; set; }
+        public DbSet<Foto_VisitaTecnica> FotosVisitaTecnica { get; set; }
         public DbSet<Medicion> Mediciones { get; set; }
         public DbSet<Notificacion> Notificaciones { get; set; }
     }

@@ -36,6 +36,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;     // conserva los nombres originales de los claims (email, rol, id, empresa_id)
     options.RequireHttpsMetadata = false; // true en producción
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -134,10 +135,11 @@ app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors("SismeingCors");
 
-// JWT Middleware personalizado (extrae claims al HttpContext.Items)
+app.UseAuthentication();
+
+// Extrae los claims del usuario ya autenticado al HttpContext.Items
 app.UseMiddleware<JwtMiddleware>();
 
-app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
