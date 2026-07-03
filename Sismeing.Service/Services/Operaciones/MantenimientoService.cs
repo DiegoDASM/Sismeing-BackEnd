@@ -57,10 +57,20 @@ namespace Sismeing.Service.Services.Operaciones
             item.FechaProximo = EntityUpdateHelper.AsegurarUtc(item.FechaProximo);
         }
 
+        private async Task<int> EstadoIdPorNombreAsync(string nombre)
+        {
+            var estado = await _context.Estados.FirstOrDefaultAsync(e => e.NombreEstado == nombre && e.Activo);
+            if (estado == null)
+                throw new InvalidOperationException($"No existe el estado '{nombre}' en el catálogo.");
+            return estado.Id;
+        }
+
         public async Task<Mantenimiento> CreateAsync(Mantenimiento item, string usuarioRegistro)
         {
             NormalizarFechas(item);
             item.Activo = true;
+            // Estado automático: todo mantenimiento nace en "Pendiente".
+            item.EstadoId = await EstadoIdPorNombreAsync("Pendiente");
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
             item.IpRegistro = _auditoriaService.ObtenerIp();
@@ -184,6 +194,43 @@ namespace Sismeing.Service.Services.Operaciones
             existingItem.IpEliminacion = _auditoriaService.ObtenerIp();
 
             await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // Aprueba el mantenimiento: pasa su estado a "Completado".
+        public async Task<bool> AprobarAsync(int id, string usuario)
+        {
+            var item = await _context.Mantenimientos.FindAsync(id);
+            if (item == null) return false;
+
+            item.EstadoId = await EstadoIdPorNombreAsync("Completado");
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                var informe = string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme;
+                var destinatarios = new List<int> { item.TecnicoId };
+                if (item.EncargadoId.HasValue && item.EncargadoId.Value != item.TecnicoId)
+                    destinatarios.Add(item.EncargadoId.Value);
+
+                foreach (var usuarioId in destinatarios)
+                {
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = usuarioId,
+                        Titulo = "Mantenimiento Completado",
+                        Mensaje = $"El mantenimiento {informe} fue aprobado y marcado como Completado.",
+                        Tipo = "completado",
+                        Origen = "mantenimiento",
+                        ReferenciaId = item.Id,
+                    }, usuario);
+                }
+            }
+            catch (Exception ex) { Console.WriteLine($"Error notificación aprobación mantenimiento: {ex.GetBaseException().Message}"); }
+
             return true;
         }
     }

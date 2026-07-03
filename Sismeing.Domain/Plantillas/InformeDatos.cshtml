@@ -1,0 +1,188 @@
+@model Sismeing.Domain.Models.Informes.InformeDatosModel
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.Titulo @Model.NumeroInforme</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; background: #eef1f5; color: #1f2937;
+               font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; }
+        .hoja { max-width: 880px; margin: 0 auto; background: #fff; border: 1px solid #d7dde5;
+                border-radius: 6px; padding: 36px 40px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+
+        .marca { text-align: center; border-bottom: 3px solid #003366; padding-bottom: 14px; margin-bottom: 18px; }
+        .marca .logo { height: 62px; width: auto; display: block; margin: 0 auto 4px; }
+        .marca .lema { margin: 4px 0 0; font-size: 11px; color: #5b6675; line-height: 1.5; }
+
+        .titulo { text-align: center; margin: 6px 0 22px; }
+        .titulo h1 { margin: 0; font-size: 19px; color: #003366; letter-spacing: .5px; }
+        .titulo .num { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700;
+                       color: #CC0000; border: 1px solid #f0c9c9; background: #fdf3f3; padding: 3px 12px; border-radius: 20px; }
+
+        .grid { display: flex; flex-wrap: wrap; gap: 16px; }
+        .card { flex: 1 1 calc(50% - 8px); min-width: 280px; border: 1px solid #e3e8ee; border-radius: 6px; overflow: hidden; }
+        .card.full { flex-basis: 100%; }
+        .card h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .6px;
+                   background: #f4f6f9; color: #003366; padding: 9px 14px; border-bottom: 1px solid #e3e8ee; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 7px 14px; vertical-align: top; border-bottom: 1px solid #f0f3f6; font-size: 12.5px; }
+        tr:last-child td { border-bottom: none; }
+        td.k { width: 45%; color: #55606e; font-weight: 600; }
+        td.v { color: #1f2937; }
+
+        .medic { margin-top: 18px; border: 1px solid #e3e8ee; border-radius: 6px; overflow: hidden; }
+        .medic h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .6px;
+                    background: #f4f6f9; color: #003366; padding: 9px 14px; border-bottom: 1px solid #e3e8ee; }
+        .medic table { width: 100%; border-collapse: collapse; }
+        .medic th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+                    color: #55606e; background: #fafbfc; padding: 8px 14px; border-bottom: 1px solid #e3e8ee; }
+        .medic th.num, .medic td.num { text-align: center; width: 22%; }
+        .medic td { padding: 7px 14px; font-size: 12.5px; border-bottom: 1px solid #f0f3f6; }
+        .medic tr:last-child td { border-bottom: none; }
+        .medic td.lbl { color: #55606e; font-weight: 600; }
+
+        .obs { margin-top: 18px; border: 1px solid #e3e8ee; border-radius: 6px; overflow: hidden; }
+        .obs h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .6px;
+                  background: #f4f6f9; color: #003366; padding: 9px 14px; border-bottom: 1px solid #e3e8ee; }
+        .obs p { margin: 0; padding: 12px 14px; line-height: 1.6; color: #374151; white-space: pre-line; }
+
+        .fotosec { margin-top: 18px; }
+        .fotosec > h2 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #003366; }
+        .grupo { margin-bottom: 16px; }
+        .grupo h3 { margin: 0 0 8px; font-size: 12.5px; color: #003366; border-left: 4px solid #CC0000; padding-left: 10px; }
+        .fotos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .fotos .foto { border: 1px solid #e3e8ee; border-radius: 6px; overflow: hidden; background: #f7f9fb; }
+        .fotos .foto img { display: block; width: 100%; height: 210px; object-fit: cover; }
+
+        .pie { margin-top: 20px; display: flex; justify-content: space-between; gap: 16px;
+               border-top: 2px solid #003366; padding-top: 12px; font-weight: 700; color: #003366; font-size: 13px; }
+
+        .firmas { margin-top: 64px; display: flex; justify-content: space-around; gap: 40px; }
+        .firma { text-align: center; flex: 1; }
+        .firma .nom { min-height: 16px; font-weight: 700; font-size: 12.5px; margin-bottom: 4px; }
+        .firma .linea { border-top: 1px solid #333; margin: 0 6px 6px; }
+        .firma .rol { font-size: 11px; color: #6b7280; font-weight: 600; }
+
+        .meta { margin-top: 28px; text-align: right; font-size: 10px; color: #9aa4b1; }
+
+        @@media print {
+            body { background: #fff; padding: 0; }
+            .hoja { box-shadow: none; border: none; max-width: none; padding: 18px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hoja">
+        <div class="marca">
+            <img class="logo" src="@Sismeing.Domain.Models.Informes.InformeAssets.LogoDataUri" alt="SISMEING S.A." />
+            <p class="lema">
+                Sistemas de Climatización, Ventilación &amp; Extracción<br />
+                Mecánica, Vapor, Aire Acondicionado y Contra Incendios
+            </p>
+        </div>
+
+        <div class="titulo">
+            <h1>@Model.Titulo</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.NumeroInforme))
+            {
+                <div><span class="num">No. @Model.NumeroInforme</span></div>
+            }
+        </div>
+
+        <div class="grid">
+            @foreach (var sec in Model.Secciones)
+            {
+                if (sec.Campos.Count == 0) { continue; }
+                <div class="card @(sec.AnchoCompleto ? "full" : "")">
+                    <h2>@sec.Titulo</h2>
+                    <table>
+                        @foreach (var c in sec.Campos)
+                        {
+                            <tr><td class="k">@c.Etiqueta</td><td class="v">@c.Valor</td></tr>
+                        }
+                    </table>
+                </div>
+            }
+        </div>
+
+        @if (Model.Mediciones != null && Model.Mediciones.Filas.Count > 0)
+        {
+            <div class="medic">
+                <h2>Mediciones</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th class="num">Inicial</th>
+                            @if (Model.Mediciones.TieneFinal) { <th class="num">Final</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fila in Model.Mediciones.Filas)
+                        {
+                            <tr>
+                                <td class="lbl">@fila.Etiqueta</td>
+                                <td class="num">@(string.IsNullOrWhiteSpace(fila.Inicial) ? "—" : fila.Inicial)</td>
+                                @if (Model.Mediciones.TieneFinal) { <td class="num">@(string.IsNullOrWhiteSpace(fila.Final) ? "—" : fila.Final)</td> }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Observaciones))
+        {
+            <div class="obs">
+                <h2>Observaciones</h2>
+                <p>@Model.Observaciones</p>
+            </div>
+        }
+
+        @if (Model.TieneFotos)
+        {
+            <div class="fotosec">
+                <h2>Evidencia Fotográfica</h2>
+                @foreach (var g in Model.Fotos)
+                {
+                    if (g.Urls.Count == 0) { continue; }
+                    <div class="grupo">
+                        <h3>@g.Titulo</h3>
+                        <div class="fotos">
+                            @foreach (var url in g.Urls)
+                            {
+                                <div class="foto"><img src="@url" alt="@g.Titulo" /></div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Estado) || !string.IsNullOrWhiteSpace(Model.EstadoPie))
+        {
+            <div class="pie">
+                <span>@(string.IsNullOrWhiteSpace(Model.Estado) ? "" : $"ESTADO: {Model.Estado}")</span>
+                <span>@Model.EstadoPie</span>
+            </div>
+        }
+
+        <div class="firmas">
+            <div class="firma">
+                <div class="nom">@Model.SupervisorNombre</div>
+                <div class="linea"></div>
+                <div class="rol">Supervisor de Obra</div>
+            </div>
+            <div class="firma">
+                <div class="nom">@Model.EncargadoNombre</div>
+                <div class="linea"></div>
+                <div class="rol">Encargado de la Empresa (Cliente)</div>
+            </div>
+        </div>
+
+        <div class="meta">Generado por SISMEING el @Model.FechaGeneracion.ToString("yyyy-MM-dd HH:mm")</div>
+    </div>
+</body>
+</html>

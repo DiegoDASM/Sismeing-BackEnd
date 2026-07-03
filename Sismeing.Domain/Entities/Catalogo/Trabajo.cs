@@ -19,5 +19,12 @@ namespace Sismeing.Domain.Entities.Catalogo
         public string NombreTrabajo { get; set; } = null!;
         [Column("descripcion")]
         public string? Descripcion { get; set; }
+
+        // Trabajo realizado dentro de un mantenimiento (nullable: el catálogo base no lo lleva).
+        [Column("mantenimiento_id")]
+        public int? MantenimientoId { get; set; }
+
+        [ForeignKey("MantenimientoId")]
+        public virtual Operaciones.Mantenimiento? Mantenimiento { get; set; }
     }
 }

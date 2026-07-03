@@ -46,10 +46,21 @@ namespace Sismeing.Service.Services.Operaciones
             item.FechaFin = EntityUpdateHelper.AsegurarUtc(item.FechaFin);
         }
 
+        // Devuelve el id del estado por su nombre (ej. "Pendiente", "Completado").
+        private async Task<int> EstadoIdPorNombreAsync(string nombre)
+        {
+            var estado = await _context.Estados.FirstOrDefaultAsync(e => e.NombreEstado == nombre && e.Activo);
+            if (estado == null)
+                throw new InvalidOperationException($"No existe el estado '{nombre}' en el catálogo.");
+            return estado.Id;
+        }
+
         public async Task<Instalacion> CreateAsync(Instalacion item, string usuarioRegistro)
         {
             NormalizarFechas(item);
             item.Activo = true;
+            // Estado automático: toda instalación nace en "Pendiente".
+            item.EstadoId = await EstadoIdPorNombreAsync("Pendiente");
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
             item.IpRegistro = _auditoriaService.ObtenerIp();
@@ -58,6 +69,35 @@ namespace Sismeing.Service.Services.Operaciones
             await _context.SaveChangesAsync();
 
             return item;
+        }
+
+        // Aprueba la instalación: pasa su estado a "Completado".
+        public async Task<bool> AprobarAsync(int id, string usuario)
+        {
+            var item = await _context.Instalaciones.FindAsync(id);
+            if (item == null) return false;
+
+            item.EstadoId = await EstadoIdPorNombreAsync("Completado");
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _notificacionService.CreateAsync(new Notificacion
+                {
+                    UsuarioId = item.TecnicoId,
+                    Titulo = "Instalación Completada",
+                    Mensaje = $"La instalación {(string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme)} fue aprobada y marcada como Completada.",
+                    Tipo = "completado",
+                    Origen = "instalacion",
+                    ReferenciaId = item.Id,
+                }, usuario);
+            }
+            catch (Exception ex) { Console.WriteLine($"Error notificación aprobación instalación: {ex.GetBaseException().Message}"); }
+
+            return true;
         }
 
         public async Task<bool> UpdateAsync(int id, Instalacion item, string usuarioModificacion)
