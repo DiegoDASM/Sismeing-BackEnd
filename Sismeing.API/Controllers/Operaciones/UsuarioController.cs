@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service;
+using Sismeing.Service.EntitiesDTO;
+using Sismeing.Domain.Entities.DTOs;
 using Sismeing.Service.Interfaces.Operaciones;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -13,12 +15,6 @@ using System.Text;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
-    public class LoginDto
-    {
-        public string CorreoElectronico { get; set; } = null!;
-        public string Contrasena { get; set; } = null!;
-    }
-
     //[Authorize]
     [ApiController]
     [Route("api/[controller]")]
@@ -47,11 +43,22 @@ namespace Sismeing.API.Controllers.Operaciones
             try
             {
                 var data = await _usuarioService.GetAllAsync();
-                return Ok(new JsonResponse<IEnumerable<Usuario>>(data));
+                var dtos = data.Select(x => new UsuarioDto{
+                    Id = x.Id,
+                    Nombre = x.Nombre,
+                    Apellido = x.Apellido,
+                    Cedula = x.Cedula,
+                    CorreoElectronico = x.CorreoElectronico,
+                    Telefono = x.Telefono,
+                    Verificado = x.Verificado,
+                    EmpresaId = x.EmpresaId,
+                    RolId = x.RolId
+                });
+                return Ok(new JsonResponse<IEnumerable<UsuarioDto>>(dtos));
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<IEnumerable<Usuario>>(null, ex.Message, ResponseStatus.error));
+                return BadRequest(new JsonResponse<IEnumerable<UsuarioDto>>(null, ex.Message, ResponseStatus.error));
             }
         }
 
@@ -62,12 +69,19 @@ namespace Sismeing.API.Controllers.Operaciones
             {
                 var data = await _usuarioService.GetByIdAsync(id);
                 if (data == null)
-                    return NotFound(new JsonResponse<Usuario>(null, "No encontrado", ResponseStatus.error));
-                return Ok(new JsonResponse<Usuario>(data));
+                    return NotFound(new JsonResponse<UsuarioDto>(null, "No encontrado", ResponseStatus.error));
+                
+                var dto = new UsuarioDto{
+                    Id = data.Id, Nombre = data.Nombre, Apellido = data.Apellido,
+                    Cedula = data.Cedula, CorreoElectronico = data.CorreoElectronico,
+                    Telefono = data.Telefono, Verificado = data.Verificado,
+                    EmpresaId = data.EmpresaId, RolId = data.RolId
+                };
+                return Ok(new JsonResponse<UsuarioDto>(dto));
             }
             catch (Exception ex)
             {
-                return BadRequest(new JsonResponse<Usuario>(null, ex.Message, ResponseStatus.error));
+                return BadRequest(new JsonResponse<UsuarioDto>(null, ex.Message, ResponseStatus.error));
             }
         }
 
@@ -90,7 +104,21 @@ namespace Sismeing.API.Controllers.Operaciones
                     return Unauthorized(new JsonResponse<object>((object?)null, "Credenciales incorrectas", ResponseStatus.error));
 
                 var token = GenerateJwtToken(user);
-                return Ok(new JsonResponse<object>(new { token, user }, "Login exitoso"));
+                
+                var userDto = new UsuarioDto
+                {
+                    Id = user.Id,
+                    CorreoElectronico = user.CorreoElectronico,
+                    Nombre = user.Nombre,
+                    Apellido = user.Apellido,
+                    Telefono = user.Telefono,
+                    RolId = user.RolId,
+                    NombreRol = user.Rol?.NombreRol ?? "",
+                    EmpresaId = user.EmpresaId,
+                    NombreEmpresa = user.Empresa?.RazonSocial ?? "", 
+                    Verificado = user.Verificado
+                };
+                return Ok(new JsonResponse<object>(new { token, user = userDto }, "Login exitoso"));
             }
             catch (Exception ex)
             {
@@ -132,7 +160,19 @@ namespace Sismeing.API.Controllers.Operaciones
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
                 var result = await _usuarioService.CreateAsync(item, userEmail);
 
-                return Ok(new JsonResponse<Usuario>(result));
+                var dto = new UsuarioDto{
+                    Id = result.Id,
+                    Nombre = result.Nombre,
+                    Apellido = result.Apellido,
+                    Cedula = result.Cedula,
+                    CorreoElectronico = result.CorreoElectronico,
+                    Telefono = result.Telefono,
+                    Verificado = result.Verificado,
+                    EmpresaId = result.EmpresaId,
+                    RolId = result.RolId
+                };
+
+                return Ok(new JsonResponse<UsuarioDto>(dto));
             }
             catch (Exception ex)
             {
