@@ -38,6 +38,9 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("proyecto_id")]
         public int? ProyectoId { get; set; }
 
+        [Column("area_id")]
+        public int? AreaId { get; set; }
+
         [ForeignKey("MarcaId")]
         public virtual Marca? Marca { get; set; }
         [ForeignKey("TipoId")]
@@ -46,5 +49,7 @@ namespace Sismeing.Domain.Entities.Operaciones
         public virtual Modelo? Modelo { get; set; }
         [ForeignKey("ProyectoId")]
         public virtual Contrato? Proyecto { get; set; }
+        [ForeignKey("AreaId")]
+        public virtual Area_Empresa? Area { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using Sismeing.Domain.Entities.Catalogo;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Catalogo;
 using Sismeing.Service.Interfaces.Comunes;
+using Sismeing.Service.Services.Comunes;
 
 namespace Sismeing.Service.Services.Catalogo
 {
@@ -28,6 +29,14 @@ namespace Sismeing.Service.Services.Catalogo
 
         public async Task<Tipo_Mantenimiento> CreateAsync(Tipo_Mantenimiento item, string usuarioRegistro)
         {
+            // Unicidad: no registrar el mismo nombre dos veces (case-insensitive)
+            var nombreNuevo = (item.NombreTipoMantenimiento ?? string.Empty).Trim();
+            if (nombreNuevo.Length == 0)
+                throw new InvalidOperationException("El nombre es obligatorio.");
+            if (await _context.TiposMantenimiento.AnyAsync(x => x.Activo && x.NombreTipoMantenimiento.ToLower() == nombreNuevo.ToLower()))
+                throw new InvalidOperationException($"Ya existe un tipo de mantenimiento con el nombre '{nombreNuevo}'.");
+            item.NombreTipoMantenimiento = nombreNuevo;
+
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -44,7 +53,14 @@ namespace Sismeing.Service.Services.Catalogo
             var existingItem = await _context.TiposMantenimiento.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var nombreNuevo = (item.NombreTipoMantenimiento ?? string.Empty).Trim();
+            if (await _context.TiposMantenimiento.AnyAsync(x => x.Id != id && x.Activo && x.NombreTipoMantenimiento.ToLower() == nombreNuevo.ToLower()))
+                throw new InvalidOperationException($"Ya existe un tipo de mantenimiento con el nombre '{nombreNuevo}'.");
+            item.NombreTipoMantenimiento = nombreNuevo;
+
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();

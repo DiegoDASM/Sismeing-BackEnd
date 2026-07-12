@@ -114,6 +114,99 @@ namespace Sismeing.Service.Services.Operaciones
             return true;
         }
 
+        // ── Invitación de encargado ───────────────────────────────────────────
+        // Crea (o reutiliza) un usuario "pendiente" con solo el correo y le envía
+        // un correo con el enlace para completar su registro.
+        public async Task InvitarEncargadoAsync(string correo, int empresaId, string usuarioRegistro)
+        {
+            correo = (correo ?? string.Empty).Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(correo))
+                throw new InvalidOperationException("El correo es obligatorio.");
+
+            var rolCliente = await _context.Roles.FirstOrDefaultAsync(r => r.NombreRol == "Cliente" && r.Activo)
+                ?? throw new InvalidOperationException("No existe el rol 'Cliente' en el catálogo.");
+
+            var token = Guid.NewGuid().ToString("N");
+            var existente = await _context.Usuarios.FirstOrDefaultAsync(u => u.CorreoElectronico.ToLower() == correo);
+
+            Usuario usuario;
+            if (existente != null)
+            {
+                if (existente.Verificado && existente.Activo)
+                    throw new InvalidOperationException("Ya existe un usuario registrado con ese correo.");
+
+                // Reinvitar: renovar token y reasociar a la empresa.
+                existente.InvitacionToken = token;
+                existente.EmpresaId = empresaId;
+                existente.RolId = rolCliente.Id;
+                existente.Activo = true;
+                existente.UsuarioModificacion = usuarioRegistro;
+                existente.FechaModificacion = DateTime.UtcNow;
+                usuario = existente;
+            }
+            else
+            {
+                usuario = new Usuario
+                {
+                    CorreoElectronico = correo,
+                    Nombre = "",
+                    Apellido = "",
+                    Cedula = $"PEND-{token[..12]}",   // placeholder único (cedula es UNIQUE)
+                    Contrasena = "PENDIENTE",          // se reemplaza al completar el registro
+                    Verificado = false,
+                    EmpresaId = empresaId,
+                    RolId = rolCliente.Id,
+                    InvitacionToken = token,
+                    Activo = true,
+                    UsuarioRegistro = usuarioRegistro,
+                    FechaRegistro = DateTime.UtcNow,
+                    IpRegistro = _auditoriaService.ObtenerIp(),
+                };
+                _context.Usuarios.Add(usuario);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Cargar la empresa para el nombre en el correo.
+            usuario.Empresa = await _context.Empresas.FindAsync(empresaId);
+
+            using var scope = _scopeFactory.CreateScope();
+            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+            await emailService.EnviarCorreoPredefinidoAsync(TipoCorreo.InvitacionEncargado, usuario, token);
+        }
+
+        public async Task<(string correo, string empresaNombre)?> GetInvitacionAsync(string token)
+        {
+            var usuario = await _context.Usuarios
+                .Include(u => u.Empresa)
+                .FirstOrDefaultAsync(u => u.InvitacionToken == token);
+            if (usuario == null) return null;
+            return (usuario.CorreoElectronico, usuario.Empresa?.Nombre ?? "");
+        }
+
+        public async Task<bool> CompletarRegistroAsync(string token, string nombre, string apellido, string cedula, string contrasena)
+        {
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.InvitacionToken == token);
+            if (usuario == null) return false;
+
+            cedula = (cedula ?? string.Empty).Trim();
+            var cedulaEnUso = await _context.Usuarios.AnyAsync(u => u.Cedula == cedula && u.Id != usuario.Id);
+            if (cedulaEnUso)
+                throw new InvalidOperationException("La cédula ya está registrada por otro usuario.");
+
+            usuario.Nombre = (nombre ?? "").Trim();
+            usuario.Apellido = (apellido ?? "").Trim();
+            usuario.Cedula = cedula;
+            usuario.Contrasena = _passwordHasher.HashPassword(usuario, contrasena);
+            usuario.Verificado = true;
+            usuario.InvitacionToken = null;
+            usuario.FechaModificacion = DateTime.UtcNow;
+            usuario.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<string?> UpdateFotoAsync(int id, string fotoUrl)
         {
             var usuario = await _context.Usuarios.FindAsync(id);

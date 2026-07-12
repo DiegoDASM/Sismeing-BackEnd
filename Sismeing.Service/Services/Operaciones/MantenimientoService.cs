@@ -27,10 +27,12 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<IEnumerable<Mantenimiento>> GetAllAsync()
         {
             return await _context.Mantenimientos
+                .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.Empresa)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
                 .Include(m => m.Instalacion)
-                    .ThenInclude(i => i.Equipo)
+                    .ThenInclude(i => i!.Equipo)
                 .Include(m => m.Instalacion)
-                    .ThenInclude(i => i.Area).ThenInclude(a => a.Empresa)
+                    .ThenInclude(i => i!.Area).ThenInclude(a => a!.Empresa)
                 .Include(m => m.TipoMantenimiento)
                 .Include(m => m.Tecnico)
                 .Include(m => m.Estado)
@@ -40,10 +42,12 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<Mantenimiento?> GetByIdAsync(int id)
         {
             return await _context.Mantenimientos
+                .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.Empresa)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
                 .Include(m => m.Instalacion)
-                    .ThenInclude(i => i.Equipo)
+                    .ThenInclude(i => i!.Equipo)
                 .Include(m => m.Instalacion)
-                    .ThenInclude(i => i.Area).ThenInclude(a => a.Empresa)
+                    .ThenInclude(i => i!.Area).ThenInclude(a => a!.Empresa)
                 .Include(m => m.TipoMantenimiento)
                 .Include(m => m.Tecnico)
                 .Include(m => m.Estado)
@@ -65,12 +69,44 @@ namespace Sismeing.Service.Services.Operaciones
             return estado.Id;
         }
 
+        // Número de informe automático y secuencial POR EMPRESA.
+        // La empresa se obtiene del equipo → área (o de la instalación → área
+        // en mantenimientos históricos sin equipo directo).
+        private async Task<string> SiguienteNumeroInformeAsync(int? equipoId, int? instalacionId)
+        {
+            int? areaId = null;
+            if (equipoId.HasValue)
+                areaId = (await _context.Equipos.FindAsync(equipoId.Value))?.AreaId;
+            if (areaId == null && instalacionId.HasValue)
+                areaId = (await _context.Instalaciones.FindAsync(instalacionId.Value))?.AreaId;
+            if (areaId == null) return string.Empty;
+
+            var area = await _context.AreasEmpresa.FindAsync(areaId.Value);
+            if (area == null) return string.Empty;
+            var seqs = await _context.Database
+                .SqlQueryRaw<int>(
+                    "UPDATE public.empresa SET numero_informe_seq = numero_informe_seq + 1 WHERE id = {0} RETURNING numero_informe_seq AS \"Value\"",
+                    area.EmpresaId)
+                .ToListAsync();
+            return seqs.FirstOrDefault().ToString("D4");
+        }
+
         public async Task<Mantenimiento> CreateAsync(Mantenimiento item, string usuarioRegistro)
         {
+            if (item.EquipoId == null && item.InstalacionId == null)
+                throw new InvalidOperationException("El mantenimiento debe indicar el equipo.");
+
+            // Si vino con instalación pero sin equipo, tomar el equipo de la instalación.
+            if (item.EquipoId == null && item.InstalacionId.HasValue)
+                item.EquipoId = (await _context.Instalaciones.FindAsync(item.InstalacionId.Value))?.EquipoId;
+
             NormalizarFechas(item);
             item.Activo = true;
             // Estado automático: todo mantenimiento nace en "Pendiente".
             item.EstadoId = await EstadoIdPorNombreAsync("Pendiente");
+            // Número de informe automático por empresa (si no vino uno manual).
+            if (string.IsNullOrWhiteSpace(item.NumeroInforme))
+                item.NumeroInforme = await SiguienteNumeroInformeAsync(item.EquipoId, item.InstalacionId);
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
             item.IpRegistro = _auditoriaService.ObtenerIp();
@@ -233,5 +269,21 @@ namespace Sismeing.Service.Services.Operaciones
 
             return true;
         }
+
+        // Reactiva un registro previamente desactivado (activo = true).
+        public async Task<bool> ReactivarAsync(int id, string usuario)
+        {
+            var item = await _context.Mantenimientos.FindAsync(id);
+            if (item == null) return false;
+
+            item.Activo = true;
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }

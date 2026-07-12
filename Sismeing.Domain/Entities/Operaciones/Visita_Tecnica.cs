@@ -16,8 +16,27 @@ namespace Sismeing.Domain.Entities.Operaciones
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Column("id")]
         public int Id { get; set; }
+        // La visita técnica evalúa un posible servicio: la empresa aún no es
+        // cliente registrado, por eso sus datos van como texto plano.
         [Column("empresa_id")]
-        public int EmpresaId { get; set; }
+        public int? EmpresaId { get; set; }
+
+        [Column("nombre_empresa")]
+        [StringLength(200)]
+        public string? NombreEmpresa { get; set; }
+
+        [Column("contacto")]
+        [StringLength(150)]
+        public string? Contacto { get; set; }
+
+        [Column("telefono")]
+        [StringLength(20)]
+        public string? Telefono { get; set; }
+
+        [Column("direccion")]
+        [StringLength(300)]
+        public string? Direccion { get; set; }
+
         [Column("tecnico_id")]
         public int TecnicoId { get; set; }
         [Column("tipo_trabajo_id")]

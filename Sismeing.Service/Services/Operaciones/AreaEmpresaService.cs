@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
+using Sismeing.Service.Services.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.Service.Services.Operaciones
@@ -44,6 +45,14 @@ namespace Sismeing.Service.Services.Operaciones
 
         public async Task<Area_Empresa> CreateAsync(Area_Empresa item, string usuarioRegistro)
         {
+            // Unicidad: no registrar el mismo nombre dos veces (case-insensitive)
+            var nombreNuevo = (item.NombreArea ?? string.Empty).Trim();
+            if (nombreNuevo.Length == 0)
+                throw new InvalidOperationException("El nombre es obligatorio.");
+            if (await _context.AreasEmpresa.AnyAsync(x => x.Activo && x.NombreArea.ToLower() == nombreNuevo.ToLower() && x.EmpresaId == item.EmpresaId))
+                throw new InvalidOperationException($"Ya existe un área en esta empresa con el nombre '{nombreNuevo}'.");
+            item.NombreArea = nombreNuevo;
+
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -60,7 +69,14 @@ namespace Sismeing.Service.Services.Operaciones
             var existingItem = await _context.AreasEmpresa.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var nombreNuevo = (item.NombreArea ?? string.Empty).Trim();
+            if (await _context.AreasEmpresa.AnyAsync(x => x.Id != id && x.Activo && x.NombreArea.ToLower() == nombreNuevo.ToLower() && x.EmpresaId == item.EmpresaId))
+                throw new InvalidOperationException($"Ya existe un área en esta empresa con el nombre '{nombreNuevo}'.");
+            item.NombreArea = nombreNuevo;
+
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();

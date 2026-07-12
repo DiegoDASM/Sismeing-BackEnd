@@ -101,5 +101,21 @@ namespace Sismeing.Service.Services.Operaciones
             await _context.SaveChangesAsync();
             return true;
         }
+
+        // Reactiva un registro previamente desactivado (activo = true).
+        public async Task<bool> ReactivarAsync(int id, string usuario)
+        {
+            var item = await _context.VisitasTecnicas.FindAsync(id);
+            if (item == null) return false;
+
+            item.Activo = true;
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }

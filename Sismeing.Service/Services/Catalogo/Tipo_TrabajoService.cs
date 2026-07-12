@@ -3,6 +3,7 @@ using Sismeing.Domain.Entities.Catalogo;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Catalogo;
 using Sismeing.Service.Interfaces.Comunes;
+using Sismeing.Service.Services.Comunes;
 
 namespace Sismeing.Service.Services.Catalogo
 {
@@ -29,6 +30,14 @@ namespace Sismeing.Service.Services.Catalogo
 
         public async Task<Tipo_Trabajo> CreateAsync(Tipo_Trabajo item, string usuarioRegistro)
         {
+            // Unicidad: no registrar el mismo nombre dos veces (case-insensitive)
+            var nombreNuevo = (item.NombreTipoTrabajo ?? string.Empty).Trim();
+            if (nombreNuevo.Length == 0)
+                throw new InvalidOperationException("El nombre es obligatorio.");
+            if (await _context.TiposTrabajo.AnyAsync(x => x.Activo && x.NombreTipoTrabajo.ToLower() == nombreNuevo.ToLower()))
+                throw new InvalidOperationException($"Ya existe un tipo de trabajo con el nombre '{nombreNuevo}'.");
+            item.NombreTipoTrabajo = nombreNuevo;
+
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -45,7 +54,14 @@ namespace Sismeing.Service.Services.Catalogo
             var existingItem = await _context.TiposTrabajo.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var nombreNuevo = (item.NombreTipoTrabajo ?? string.Empty).Trim();
+            if (await _context.TiposTrabajo.AnyAsync(x => x.Id != id && x.Activo && x.NombreTipoTrabajo.ToLower() == nombreNuevo.ToLower()))
+                throw new InvalidOperationException($"Ya existe un tipo de trabajo con el nombre '{nombreNuevo}'.");
+            item.NombreTipoTrabajo = nombreNuevo;
+
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();

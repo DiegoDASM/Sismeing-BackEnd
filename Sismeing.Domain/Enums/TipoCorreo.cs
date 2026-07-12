@@ -5,6 +5,7 @@ namespace Sismeing.Domain.Enums
         Bienvenida,
         RestablecerPassword,
         RecordatorioMantenimiento,
+        InvitacionEncargado,
         // Agregar aquí otros tipos de correos según se necesiten
     }
 }

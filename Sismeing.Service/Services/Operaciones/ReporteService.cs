@@ -174,6 +174,11 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<string?> MantenimientoDatosAsync(int id)
         {
             var x = await _context.Mantenimientos
+                .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Modelo)
+                .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.Empresa)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.DireccionEmpresa)
                 .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.Marca)
                 .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.Modelo)
                 .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.TipoEquipo)
@@ -187,8 +192,10 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (x == null) return null;
 
-            var equipo = x.Instalacion?.Equipo;
-            var area = x.Instalacion?.Area;
+            // El equipo directo del mantenimiento manda; la instalación es respaldo
+            // para mantenimientos históricos.
+            var equipo = x.Equipo ?? x.Instalacion?.Equipo;
+            var area = x.Equipo?.Area ?? x.Instalacion?.Area;
 
             var m = new InformeDatosModel
             {
@@ -292,7 +299,10 @@ namespace Sismeing.Service.Services.Operaciones
             };
 
             m.Secciones.Add(new InformeSeccion { Titulo = "Datos de la Visita", AnchoCompleto = true }
-                .Add("Empresa", v.Empresa?.Nombre)
+                .Add("Empresa", v.NombreEmpresa ?? v.Empresa?.Nombre)
+                .Add("Persona de contacto", v.Contacto)
+                .Add("Teléfono", v.Telefono)
+                .Add("Dirección", v.Direccion)
                 .Add("Responsable", NombreCompleto(v.Tecnico))
                 .Add("Tipo de trabajo", v.TipoTrabajo?.NombreTipoTrabajo)
                 .Add("Fecha de visita", v.FechaVisita)

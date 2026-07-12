@@ -122,6 +122,22 @@ namespace Sismeing.Service.Services.Email
                             welcomeModel);
                         break;
 
+                    case TipoCorreo.InvitacionEncargado:
+                        var completarUrl = $"{frontendUrl}/completar-registro?token={tokenAdicional}";
+                        var invitationModel = new InvitationModel
+                        {
+                            Email = usuario.CorreoElectronico,
+                            EmpresaNombre = usuario.Empresa?.Nombre ?? "su empresa",
+                            CompletarRegistroUrl = completarUrl
+                        };
+
+                        await SendAsync(
+                            usuario.CorreoElectronico,
+                            "Invitación para completar tu registro - Sismeing",
+                            "InvitacionEncargado",
+                            invitationModel);
+                        break;
+
                     case TipoCorreo.RestablecerPassword:
                         // Implementación futura
                         // var resetUrl = $"{frontendUrl}/reset-password?token={tokenAdicional}";

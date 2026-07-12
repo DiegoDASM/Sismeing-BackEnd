@@ -44,6 +44,12 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("Contrasena")]
         public string Contrasena { get; set; } = null!;
 
+        // Token de invitación de encargado: presente mientras el usuario no ha
+        // completado su registro. Se limpia (null) al completarlo.
+        [System.Text.Json.Serialization.JsonIgnore]
+        [Column("invitacion_token")]
+        public string? InvitacionToken { get; set; }
+
         [ForeignKey("EmpresaId")]
         public virtual Empresa? Empresa { get; set; }
         [ForeignKey("RolId")]

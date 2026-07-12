@@ -55,12 +55,29 @@ namespace Sismeing.Service.Services.Operaciones
             return estado.Id;
         }
 
+        // Número de informe automático y secuencial POR EMPRESA.
+        // La empresa se obtiene del área de la instalación.
+        private async Task<string> SiguienteNumeroInformeAsync(int areaId)
+        {
+            var area = await _context.AreasEmpresa.FindAsync(areaId);
+            if (area == null) return string.Empty;
+            var seqs = await _context.Database
+                .SqlQueryRaw<int>(
+                    "UPDATE public.empresa SET numero_informe_seq = numero_informe_seq + 1 WHERE id = {0} RETURNING numero_informe_seq AS \"Value\"",
+                    area.EmpresaId)
+                .ToListAsync();
+            return seqs.FirstOrDefault().ToString("D4");
+        }
+
         public async Task<Instalacion> CreateAsync(Instalacion item, string usuarioRegistro)
         {
             NormalizarFechas(item);
             item.Activo = true;
             // Estado automático: toda instalación nace en "Pendiente".
             item.EstadoId = await EstadoIdPorNombreAsync("Pendiente");
+            // Número de informe automático por empresa (si no vino uno manual).
+            if (string.IsNullOrWhiteSpace(item.NumeroInforme))
+                item.NumeroInforme = await SiguienteNumeroInformeAsync(item.AreaId);
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
             item.IpRegistro = _auditoriaService.ObtenerIp();
@@ -158,5 +175,21 @@ namespace Sismeing.Service.Services.Operaciones
             await _context.SaveChangesAsync();
             return true;
         }
+
+        // Reactiva un registro previamente desactivado (activo = true).
+        public async Task<bool> ReactivarAsync(int id, string usuario)
+        {
+            var item = await _context.Instalaciones.FindAsync(id);
+            if (item == null) return false;
+
+            item.Activo = true;
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }

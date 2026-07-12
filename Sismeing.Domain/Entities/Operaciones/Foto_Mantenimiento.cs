@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Sismeing.Domain.Entities.Operaciones
 {
     [Table("foto_mantenimiento", Schema = "public")]
-    public class Foto_Mantenimiento : AuditProperties
+    public class Foto_Mantenimiento : AuditCatProperties
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

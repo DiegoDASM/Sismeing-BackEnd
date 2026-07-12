@@ -10,5 +10,7 @@ namespace Sismeing.Service.Interfaces.Operaciones
         Task<bool> UpdateAsync(int id, Mantenimiento item, string usuarioModificacion);
         Task<bool> AprobarAsync(int id, string usuario);
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);
+        Task<bool> ReactivarAsync(int id, string usuario);
+
     }
 }

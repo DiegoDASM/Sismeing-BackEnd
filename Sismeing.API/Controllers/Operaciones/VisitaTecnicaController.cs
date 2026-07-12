@@ -104,6 +104,26 @@ namespace Sismeing.API.Controllers.Operaciones
                 return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
             }
         }
+
+        [HttpPatch("{id:int}/activar")]
+        public async Task<ActionResult> Activar(int id)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _visitaTecnicaService.ReactivarAsync(id, userEmail);
+
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
     }
 }
 

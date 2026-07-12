@@ -3,6 +3,7 @@ using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
+using Sismeing.Service.Services.Comunes;
 
 namespace Sismeing.Service.Services.Operaciones
 {
@@ -36,8 +37,15 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
+        private static void NormalizarFechas(Contrato item)
+        {
+            item.FechaInicio = EntityUpdateHelper.AsegurarUtc(item.FechaInicio);
+            item.FechaFin = EntityUpdateHelper.AsegurarUtc(item.FechaFin);
+        }
+
         public async Task<Contrato> CreateAsync(Contrato item, string usuarioRegistro)
         {
+            NormalizarFechas(item);
             item.Activo = true;
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
@@ -54,7 +62,10 @@ namespace Sismeing.Service.Services.Operaciones
             var existingItem = await _context.Contratos.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            NormalizarFechas(item);
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();
@@ -76,5 +87,21 @@ namespace Sismeing.Service.Services.Operaciones
             await _context.SaveChangesAsync();
             return true;
         }
+
+        // Reactiva un registro previamente desactivado (activo = true).
+        public async Task<bool> ReactivarAsync(int id, string usuario)
+        {
+            var item = await _context.Contratos.FindAsync(id);
+            if (item == null) return false;
+
+            item.Activo = true;
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }

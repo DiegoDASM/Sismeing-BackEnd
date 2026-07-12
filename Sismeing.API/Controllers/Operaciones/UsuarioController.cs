@@ -248,6 +248,75 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        // ── Invitación de encargado ───────────────────────────────────────────
+        public class InvitarEncargadoDto
+        {
+            public string CorreoElectronico { get; set; } = null!;
+            public int EmpresaId { get; set; }
+        }
+
+        [HttpPost("invitar")]
+        public async Task<ActionResult> Invitar([FromBody] InvitarEncargadoDto dto)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                await _usuarioService.InvitarEncargadoAsync(dto.CorreoElectronico, dto.EmpresaId, userEmail);
+                return Ok(new JsonResponse<bool>(true, "Invitación enviada"));
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new JsonResponse<bool>(false, msg, ResponseStatus.error));
+            }
+        }
+
+        [HttpGet("invitacion/{token}")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetInvitacion(string token)
+        {
+            try
+            {
+                var data = await _usuarioService.GetInvitacionAsync(token);
+                if (data == null)
+                    return NotFound(new JsonResponse<object>((object?)null, "Invitación no válida o ya utilizada", ResponseStatus.error));
+
+                return Ok(new JsonResponse<object>(new { correoElectronico = data.Value.correo, empresaNombre = data.Value.empresaNombre }));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<object>((object?)null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        public class CompletarRegistroDto
+        {
+            public string Token { get; set; } = null!;
+            public string Nombre { get; set; } = null!;
+            public string Apellido { get; set; } = null!;
+            public string Cedula { get; set; } = null!;
+            public string Contrasena { get; set; } = null!;
+        }
+
+        [HttpPost("completar-registro")]
+        [AllowAnonymous]
+        public async Task<ActionResult> CompletarRegistro([FromBody] CompletarRegistroDto dto)
+        {
+            try
+            {
+                var ok = await _usuarioService.CompletarRegistroAsync(dto.Token, dto.Nombre, dto.Apellido, dto.Cedula, dto.Contrasena);
+                if (!ok)
+                    return NotFound(new JsonResponse<bool>(false, "Invitación no válida o ya utilizada", ResponseStatus.error));
+
+                return Ok(new JsonResponse<bool>(true, "Registro completado. Ya puede iniciar sesión."));
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                return BadRequest(new JsonResponse<bool>(false, msg, ResponseStatus.error));
+            }
+        }
+
         public class CambiarPasswordDto
         {
             public string PasswordActual { get; set; } = null!;

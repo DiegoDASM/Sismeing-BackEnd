@@ -22,6 +22,10 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("razon_social")]
         public string RazonSocial { get; set; } = null!;
 
+        [Column("ruc")]
+        [StringLength(13)]
+        public string? Ruc { get; set; }
+
         [Column("telefono")]
         public string? Telefono { get; set; }
 
@@ -30,5 +34,10 @@ namespace Sismeing.Domain.Entities.Operaciones
 
         [Column("logo")]
         public string? Logo { get; set; }
+
+        // Contador secuencial de informes por empresa (instalación y mantenimiento).
+        [System.Text.Json.Serialization.JsonIgnore]
+        [Column("numero_informe_seq")]
+        public int NumeroInformeSeq { get; set; }
     }
 }

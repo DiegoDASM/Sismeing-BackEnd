@@ -1,0 +1,27 @@
+@model Sismeing.Domain.Models.Emails.InvitationModel
+
+@{
+    Layout = "_Layout.cshtml";
+    ViewBag.Title = "Invitación para completar tu registro";
+}
+
+<table width="100%" style="font-family: sans-serif; color: #333;">
+    <tr>
+        <td style="background-color: #003366; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">SISMEING S.A.</h1>
+            <p style="color: #ddd; margin: 0;">Ingeniería Inteligente</p>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 30px; line-height: 1.6;">
+            <h2>Has sido invitado como encargado</h2>
+            <p>La empresa <strong>@Model.EmpresaNombre</strong> te ha registrado como encargado en la plataforma de gestión técnica de SISMEING.</p>
+            <p>Para activar tu acceso, completa tu registro (nombre, cédula y contraseña) en el siguiente botón:</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="@Model.CompletarRegistroUrl" style="background-color: #CC0000; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Completar mi registro</a>
+            </div>
+            <p>Tu correo de acceso ya quedó asociado: <strong>@Model.Email</strong></p>
+            <p style="font-size: 12px; color: #888;">Si no reconoces esta invitación, puedes ignorar este correo.</p>
+        </td>
+    </tr>
+</table>

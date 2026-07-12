@@ -17,8 +17,13 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("id")]
         public int Id { get; set; }
 
+        // El mantenimiento pertenece a un EQUIPO. La instalación es opcional:
+        // hay equipos que ya estaban instalados y solo reciben mantenimiento.
+        [Column("equipo_id")]
+        public int? EquipoId { get; set; }
+
         [Column("instalacion_id")]
-        public int InstalacionId { get; set; }
+        public int? InstalacionId { get; set; }
 
         [Column("tecnico_id")]
         public int TecnicoId { get; set; }
@@ -59,6 +64,8 @@ namespace Sismeing.Domain.Entities.Operaciones
         [NotMapped]
         public bool EnviarCorreoRecordatorio { get; set; }
 
+        [ForeignKey("EquipoId")]
+        public virtual Equipo? Equipo { get; set; }
         [ForeignKey("InstalacionId")]
         public virtual Instalacion? Instalacion { get; set; }
         [ForeignKey("TecnicoId")]
