@@ -15,7 +15,7 @@ using System.Text;
 
 namespace Sismeing.API.Controllers.Operaciones
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class UsuarioController : ControllerBase
@@ -201,6 +201,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
+        [Authorize(Roles = "Administrador,Supervisor")]
         public async Task<ActionResult> Create([FromBody] Usuario item)
         {
             try
@@ -296,20 +297,25 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
-        // ── Invitación de encargado ───────────────────────────────────────────
+        // ── Invitación de usuario ─────────────────────────────────────────────
+        // Crea la cuenta "pendiente" y envía el correo para que la persona
+        // establezca su propia contraseña. RolId opcional: si no se envía, se
+        // asume el rol Cliente (compatibilidad con la invitación de encargados).
         public class InvitarEncargadoDto
         {
             public string CorreoElectronico { get; set; } = null!;
             public int EmpresaId { get; set; }
+            public int? RolId { get; set; }
         }
 
         [HttpPost("invitar")]
+        [Authorize(Roles = "Administrador,Supervisor")]
         public async Task<ActionResult> Invitar([FromBody] InvitarEncargadoDto dto)
         {
             try
             {
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                await _usuarioService.InvitarEncargadoAsync(dto.CorreoElectronico, dto.EmpresaId, userEmail);
+                await _usuarioService.InvitarUsuarioAsync(dto.CorreoElectronico, dto.RolId, dto.EmpresaId, userEmail);
                 return Ok(new JsonResponse<bool>(true, "Invitación enviada"));
             }
             catch (Exception ex)
