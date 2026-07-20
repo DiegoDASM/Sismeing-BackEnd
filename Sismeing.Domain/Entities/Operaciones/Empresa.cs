@@ -35,6 +35,11 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("logo")]
         public string? Logo { get; set; }
 
+        // true solo para SISMEING S.A. (empresa base de los usuarios internos):
+        // no debe aparecer en el módulo de clientes ni en los selects de empresas.
+        [Column("es_interna")]
+        public bool EsInterna { get; set; }
+
         // Contador secuencial de informes por empresa (instalación y mantenimiento).
         [System.Text.Json.Serialization.JsonIgnore]
         [Column("numero_informe_seq")]

@@ -29,6 +29,32 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.Usuarios.Where(u => u.Activo).ToListAsync();
         }
 
+        // Para el panel de cuentas: TODOS los usuarios (activos e inactivos)
+        // con su rol y empresa.
+        public async Task<IEnumerable<Usuario>> GetTodosAsync()
+        {
+            return await _context.Usuarios
+                .Include(u => u.Rol)
+                .Include(u => u.Empresa)
+                .OrderBy(u => u.RolId).ThenBy(u => u.Nombre)
+                .ToListAsync();
+        }
+
+        // Reactiva una cuenta desactivada.
+        public async Task<bool> ReactivarAsync(int id, string usuario)
+        {
+            var item = await _context.Usuarios.FindAsync(id);
+            if (item == null) return false;
+
+            item.Activo = true;
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<Usuario?> GetByIdAsync(int id)
         {
             return await _context.Usuarios.FindAsync(id);

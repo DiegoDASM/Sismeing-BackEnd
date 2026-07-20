@@ -26,6 +26,17 @@
                     background: #f4f6f9; color: #003366; padding: 9px 14px; border-bottom: 1px solid #e3e8ee; }
         .descr p { margin: 0; padding: 12px 14px; line-height: 1.6; color: #374151; white-space: pre-line; }
 
+        /* Formato oficial: IMAGEN INICIAL | DESCRIPCIÓN | IMAGEN FINAL */
+        .tabla-fotos { width: 100%; border-collapse: collapse; border: 1px solid #d7dde5; margin-bottom: 18px; }
+        .tabla-fotos th { background: #4a90d9; color: #fff; font-size: 11.5px; text-transform: uppercase;
+                          letter-spacing: .5px; padding: 8px 10px; border: 1px solid #d7dde5; }
+        .tabla-fotos td { border: 1px solid #d7dde5; vertical-align: middle; }
+        .tabla-fotos td.celda-foto { width: 26%; padding: 6px; background: #f7f9fb; }
+        .tabla-fotos td.celda-foto img { display: block; width: 100%; height: 150px; object-fit: cover; border-radius: 3px; }
+        .tabla-fotos td.celda-desc { padding: 10px 16px; text-align: center; font-size: 12.5px;
+                                     color: #374151; line-height: 1.55; }
+        .tabla-fotos td.sin-foto { text-align: center; color: #b6c0cc; font-size: 11px; font-style: italic; }
+
         .grupo { margin-bottom: 22px; }
         .grupo h3 { margin: 0 0 10px; font-size: 13px; color: #003366; border-left: 4px solid #CC0000; padding-left: 10px; }
         .fotos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -75,7 +86,43 @@
             </div>
         }
 
-        @if (Model.TieneFotos)
+        @if (Model.TieneFilas)
+        {
+            <table class="tabla-fotos">
+                <thead>
+                    <tr>
+                        <th>Imagen Inicial</th>
+                        <th>Descripción</th>
+                        <th>Imagen Final</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fila in Model.Filas)
+                    {
+                        <tr>
+                            @if (!string.IsNullOrWhiteSpace(fila.UrlInicial))
+                            {
+                                <td class="celda-foto"><img src="@fila.UrlInicial" alt="Imagen inicial" /></td>
+                            }
+                            else
+                            {
+                                <td class="celda-foto sin-foto">Sin fotografía</td>
+                            }
+                            <td class="celda-desc">@(string.IsNullOrWhiteSpace(fila.Descripcion) ? "—" : fila.Descripcion)</td>
+                            @if (!string.IsNullOrWhiteSpace(fila.UrlFinal))
+                            {
+                                <td class="celda-foto"><img src="@fila.UrlFinal" alt="Imagen final" /></td>
+                            }
+                            else
+                            {
+                                <td class="celda-foto sin-foto">Sin fotografía</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (Model.TieneFotos)
         {
             foreach (var g in Model.Grupos)
             {

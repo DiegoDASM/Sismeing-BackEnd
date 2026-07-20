@@ -42,5 +42,9 @@ namespace Sismeing.API.Controllers.Operaciones
 
         [HttpGet("visita/{id:int}/fotografico")]
         public async Task<ActionResult> VisitaFotografico(int id) => Html(await _reporteService.VisitaFotograficoAsync(id));
+
+        // ── Hoja de vida del equipo (destino del código QR) ──
+        [HttpGet("equipo/{id:int}")]
+        public async Task<ActionResult> EquipoHojaVida(int id) => Html(await _reporteService.EquipoHojaVidaAsync(id));
     }
 }

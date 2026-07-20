@@ -58,13 +58,20 @@ builder.Services.AddAuthorization();
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
+// Cors:PermitirTodos=true (o env CORS__PERMITIRTODOS) abre CORS a cualquier
+// origen: SOLO para pruebas públicas rápidas (túneles), nunca en producción.
+var corsPermitirTodos = builder.Configuration.GetValue<bool>("Cors:PermitirTodos");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("SismeingCors", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (corsPermitirTodos)
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        else
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
     });
 });
 

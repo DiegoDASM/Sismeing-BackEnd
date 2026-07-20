@@ -14,5 +14,8 @@ namespace Sismeing.Service.Interfaces.Operaciones
 
         Task<string?> VisitaDatosAsync(int id);
         Task<string?> VisitaFotograficoAsync(int id);
+
+        /// <summary>Hoja de vida completa del equipo (destino del código QR).</summary>
+        Task<string?> EquipoHojaVidaAsync(int id);
     }
 }

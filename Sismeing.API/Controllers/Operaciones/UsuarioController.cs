@@ -62,6 +62,54 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        // Panel de cuentas (admin/supervisor): todos los usuarios, incluso
+        // desactivados, con nombre de rol y de empresa.
+        [HttpGet("todos")]
+        public async Task<ActionResult> GetTodos()
+        {
+            try
+            {
+                var data = await _usuarioService.GetTodosAsync();
+                var dtos = data.Select(x => new UsuarioDto
+                {
+                    Id = x.Id,
+                    Nombre = x.Nombre,
+                    Apellido = x.Apellido,
+                    Cedula = x.Cedula,
+                    CorreoElectronico = x.CorreoElectronico,
+                    Telefono = x.Telefono,
+                    Verificado = x.Verificado,
+                    EmpresaId = x.EmpresaId,
+                    RolId = x.RolId,
+                    NombreRol = x.Rol?.NombreRol ?? "",
+                    NombreEmpresa = x.Empresa?.Nombre ?? "",
+                    Activo = x.Activo,
+                });
+                return Ok(new JsonResponse<IEnumerable<UsuarioDto>>(dtos));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<UsuarioDto>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPatch("{id:int}/activar")]
+        public async Task<ActionResult> Activar(int id)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _usuarioService.ReactivarAsync(id, userEmail);
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetById(int id)
         {

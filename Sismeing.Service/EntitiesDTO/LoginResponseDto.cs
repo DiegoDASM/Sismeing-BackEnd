@@ -20,6 +20,7 @@ namespace Sismeing.Domain.Entities.DTOs
         public int EmpresaId { get; set; }
         public string NombreEmpresa { get; set; } = string.Empty;
         public bool Verificado { get; set; }
+        public bool Activo { get; set; } = true;
     }
 
     public class RegisterRequestDto

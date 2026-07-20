@@ -35,8 +35,14 @@ namespace Sismeing.Domain.Models.Informes
 
         // Firmas: todo informe se imprime SIEMPRE con espacio para la firma del
         // supervisor de obra y del encargado de la empresa cliente (el nombre es opcional).
+        // La hoja de vida del equipo no lleva firmas (MostrarFirmas = false).
+        public bool MostrarFirmas { get; set; } = true;
         public string? SupervisorNombre { get; set; }
         public string? EncargadoNombre { get; set; }
+
+        // Código QR (data URI PNG) que enlaza a la hoja de vida del equipo.
+        public string? QrDataUri { get; set; }
+        public string? QrLeyenda { get; set; }
 
         public DateTime FechaGeneracion { get; set; } = DateTime.Now;
     }
@@ -112,16 +118,23 @@ namespace Sismeing.Domain.Models.Informes
 
         public List<InformeFotoGrupo> Grupos { get; set; } = new();
 
+        // Formato oficial: filas foto inicial | descripción | foto final.
+        // Si hay filas, la plantilla las usa en lugar de los grupos.
+        public List<InformeFotoFila> Filas { get; set; } = new();
+
         // Firmas fijas (ver InformeDatosModel).
         public string? SupervisorNombre { get; set; }
         public string? EncargadoNombre { get; set; }
 
         public DateTime FechaGeneracion { get; set; } = DateTime.Now;
 
+        public bool TieneFilas => Filas.Count > 0;
+
         public bool TieneFotos
         {
             get
             {
+                if (TieneFilas) return true;
                 foreach (var g in Grupos)
                     if (g.Urls.Count > 0) return true;
                 return false;
@@ -133,5 +146,17 @@ namespace Sismeing.Domain.Models.Informes
     {
         public string Titulo { get; set; } = "";                 // Ej: "Imagen Inicial" / "Imagen Final"
         public List<string> Urls { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Fila del informe fotográfico con el formato oficial de SISMEING:
+    /// IMAGEN INICIAL | DESCRIPCIÓN (trabajo realizado) | IMAGEN FINAL.
+    /// Las fotos se emparejan por orden de subida con el trabajo correspondiente.
+    /// </summary>
+    public class InformeFotoFila
+    {
+        public string? UrlInicial { get; set; }
+        public string? Descripcion { get; set; }
+        public string? UrlFinal { get; set; }
     }
 }

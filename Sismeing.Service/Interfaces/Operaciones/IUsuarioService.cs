@@ -5,6 +5,8 @@ namespace Sismeing.Service.Interfaces.Operaciones
     public interface IUsuarioService
     {
         Task<IEnumerable<Usuario>> GetAllAsync();
+        Task<IEnumerable<Usuario>> GetTodosAsync();
+        Task<bool> ReactivarAsync(int id, string usuario);
         Task<Usuario?> GetByIdAsync(int id);
         Task<Usuario> CreateAsync(Usuario item, string usuarioRegistro);
         Task<bool> UpdateAsync(int id, Usuario item, string usuarioModificacion);
