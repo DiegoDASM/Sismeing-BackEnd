@@ -13,8 +13,10 @@ namespace Sismeing.Service.Interfaces.Operaciones
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);
         Task<bool> UpdatePerfilAsync(int id, string nombre, string apellido, string? telefono, string userEmail);
 
-        // ── Invitación de encargado ──
-        Task InvitarEncargadoAsync(string correo, int empresaId, string usuarioRegistro);
+        // ── Invitación de usuario ──
+        // rolId opcional: si no se envía se asume el rol "Cliente" (invitación
+        // de encargado desde la ficha del cliente).
+        Task InvitarUsuarioAsync(string correo, int? rolId, int empresaId, string usuarioRegistro);
         Task<(string correo, string empresaNombre)?> GetInvitacionAsync(string token);
         Task<bool> CompletarRegistroAsync(string token, string nombre, string apellido, string cedula, string contrasena);
     }

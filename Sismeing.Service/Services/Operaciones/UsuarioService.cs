@@ -140,17 +140,22 @@ namespace Sismeing.Service.Services.Operaciones
             return true;
         }
 
-        // ── Invitación de encargado ───────────────────────────────────────────
+        // ── Invitación de usuario ─────────────────────────────────────────────
         // Crea (o reutiliza) un usuario "pendiente" con solo el correo y le envía
         // un correo con el enlace para completar su registro.
-        public async Task InvitarEncargadoAsync(string correo, int empresaId, string usuarioRegistro)
+        // rolId opcional: sin él se asume "Cliente" (invitación de encargado
+        // desde la ficha del cliente, que no elige rol).
+        public async Task InvitarUsuarioAsync(string correo, int? rolId, int empresaId, string usuarioRegistro)
         {
             correo = (correo ?? string.Empty).Trim().ToLower();
             if (string.IsNullOrWhiteSpace(correo))
                 throw new InvalidOperationException("El correo es obligatorio.");
 
-            var rolCliente = await _context.Roles.FirstOrDefaultAsync(r => r.NombreRol == "Cliente" && r.Activo)
-                ?? throw new InvalidOperationException("No existe el rol 'Cliente' en el catálogo.");
+            var rol = rolId.HasValue
+                ? await _context.Roles.FirstOrDefaultAsync(r => r.Id == rolId.Value && r.Activo)
+                    ?? throw new InvalidOperationException("El rol seleccionado no existe o está inactivo.")
+                : await _context.Roles.FirstOrDefaultAsync(r => r.NombreRol == "Cliente" && r.Activo)
+                    ?? throw new InvalidOperationException("No existe el rol 'Cliente' en el catálogo.");
 
             var token = Guid.NewGuid().ToString("N");
             var existente = await _context.Usuarios.FirstOrDefaultAsync(u => u.CorreoElectronico.ToLower() == correo);
@@ -164,7 +169,7 @@ namespace Sismeing.Service.Services.Operaciones
                 // Reinvitar: renovar token y reasociar a la empresa.
                 existente.InvitacionToken = token;
                 existente.EmpresaId = empresaId;
-                existente.RolId = rolCliente.Id;
+                existente.RolId = rol.Id;
                 existente.Activo = true;
                 existente.UsuarioModificacion = usuarioRegistro;
                 existente.FechaModificacion = DateTime.UtcNow;
@@ -181,7 +186,7 @@ namespace Sismeing.Service.Services.Operaciones
                     Contrasena = "PENDIENTE",          // se reemplaza al completar el registro
                     Verificado = false,
                     EmpresaId = empresaId,
-                    RolId = rolCliente.Id,
+                    RolId = rol.Id,
                     InvitacionToken = token,
                     Activo = true,
                     UsuarioRegistro = usuarioRegistro,

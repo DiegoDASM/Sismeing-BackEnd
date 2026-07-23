@@ -41,6 +41,27 @@ namespace Sismeing.Service.Services.Operaciones
         private static string Num(string? numeroInforme, int id) =>
             string.IsNullOrWhiteSpace(numeroInforme) ? $"#{id}" : numeroInforme!;
 
+        /// <summary>
+        /// Ficha del equipo que encabeza el informe fotografico, en el orden del
+        /// formato oficial: EQUIPO / N SERIE, MARCA / MODELO, AREA / CAPACIDAD,
+        /// CODIGO / POTENCIA. El area puede venir del equipo o del propio informe.
+        /// </summary>
+        private static InformeCabecera CabeceraEquipo(Equipo? equipo, Area_Empresa? area)
+        {
+            var cab = new InformeCabecera();
+            if (equipo == null && area == null) return cab;
+
+            return cab
+                .Add("Equipo", equipo?.Nombre ?? equipo?.TipoEquipo?.Nombre)
+                .Add("N.º Serie", equipo?.NumeroSerie)
+                .Add("Marca", equipo?.Marca?.Nombre)
+                .Add("Modelo", equipo?.Modelo?.Nombre)
+                .Add("Área", area?.NombreArea ?? equipo?.Area?.NombreArea)
+                .Add("Capacidad", equipo?.Modelo?.Capacidad)
+                .Add("Código", equipo?.Codigo)
+                .Add("Potencia", equipo?.Modelo?.Potencia);
+        }
+
         private static string? NombreCompleto(Usuario? u) =>
             u == null ? null : $"{u.Nombre} {u.Apellido}".Trim();
 
@@ -220,18 +241,25 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<string?> InstalacionFotograficoAsync(int id)
         {
             var i = await _context.Instalaciones
-                .Include(x => x.Equipo)
+                .Include(x => x.Equipo).ThenInclude(e => e!.Marca)
+                .Include(x => x.Equipo).ThenInclude(e => e!.Modelo)
+                .Include(x => x.Equipo).ThenInclude(e => e!.TipoEquipo)
+                .Include(x => x.Equipo).ThenInclude(e => e!.Area)
+                .Include(x => x.Area)
                 .Include(x => x.Tecnico)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (i == null) return null;
+
+            var descripcion = string.IsNullOrWhiteSpace(i.OrdenTrabajo)
+                ? "Instalación."
+                : $"Instalación. Orden de trabajo {i.OrdenTrabajo}.";
 
             var m = new InformeFotograficoModel
             {
                 Titulo = "INFORME FOTOGRÁFICO DE INSTALACIÓN",
                 NumeroInforme = Num(i.NumeroInforme, i.Id),
-                Descripcion = string.IsNullOrWhiteSpace(i.OrdenTrabajo)
-                    ? i.Equipo?.Nombre
-                    : $"Orden de trabajo {i.OrdenTrabajo}. Equipo: {i.Equipo?.Nombre}"
+                Descripcion = descripcion,
+                Cabecera = CabeceraEquipo(i.Equipo, i.Area),
             };
             m.Grupos = await FotosInstalacionAsync(i.Id);
             var (iniI, finI) = await UrlsInstalacionAsync(i.Id);
@@ -331,6 +359,14 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<string?> MantenimientoFotograficoAsync(int id)
         {
             var x = await _context.Mantenimientos
+                .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Modelo)
+                .Include(m => m.Equipo).ThenInclude(e => e!.TipoEquipo)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Area)
+                .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.Marca)
+                .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.Modelo)
+                .Include(m => m.Instalacion).ThenInclude(i => i!.Equipo).ThenInclude(e => e!.TipoEquipo)
+                .Include(m => m.Instalacion).ThenInclude(i => i!.Area)
                 .Include(m => m.TipoMantenimiento)
                 .Include(m => m.Tecnico)
                 .Include(m => m.Encargado)
@@ -338,14 +374,24 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (x == null) return null;
 
+            // El equipo directo manda; la instalacion es respaldo para historicos.
+            var equipo = x.Equipo ?? x.Instalacion?.Equipo;
+            var area = x.Equipo?.Area ?? x.Instalacion?.Area;
+
+            var tipo = x.TipoMantenimiento?.NombreTipoMantenimiento;
+            var descripcion = string.IsNullOrWhiteSpace(tipo)
+                ? "Mantenimiento."
+                : $"Mantenimiento {tipo}.";
+
             var m = new InformeFotograficoModel
             {
                 Titulo = "INFORME FOTOGRÁFICO DE MANTENIMIENTO",
                 NumeroInforme = Num(x.NumeroInforme, x.Id),
-                Descripcion = string.IsNullOrWhiteSpace(x.TipoMantenimiento?.NombreTipoMantenimiento)
-                    ? x.ObservacionInicial
-                    : $"Mantenimiento {x.TipoMantenimiento!.NombreTipoMantenimiento}. {x.ObservacionInicial}".Trim(),
-                Observaciones = x.ObservacionesFinales
+                Descripcion = descripcion,
+                // La observacion inicial no existe en el formato oficial: se
+                // conserva junto a la final en el bloque OBSERVACIONES.
+                Observaciones = JoinObs(x.ObservacionInicial, x.ObservacionesFinales),
+                Cabecera = CabeceraEquipo(equipo, area),
             };
             m.Grupos = await FotosMantenimientoAsync(x.Id);
 
@@ -397,19 +443,34 @@ namespace Sismeing.Service.Services.Operaciones
         public async Task<string?> VisitaFotograficoAsync(int id)
         {
             var v = await _context.VisitasTecnicas
+                .Include(x => x.Empresa)
                 .Include(x => x.TipoTrabajo)
                 .Include(x => x.Tecnico)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (v == null) return null;
 
+            var trabajo = v.TipoTrabajo?.NombreTipoTrabajo;
+            var descripcion = string.IsNullOrWhiteSpace(trabajo)
+                ? (v.DescripcionVisita ?? "Visita técnica.")
+                : $"{trabajo}. {v.DescripcionVisita}".Trim();
+
+            // La visita evalua un prospecto: no hay equipo registrado, asi que la
+            // cabecera lleva los datos de la empresa visitada.
+            var cabecera = new InformeCabecera()
+                .Add("Empresa", v.NombreEmpresa ?? v.Empresa?.Nombre)
+                .Add("Contacto", v.Contacto)
+                .Add("Teléfono", v.Telefono)
+                .Add("Fecha", v.FechaVisita.ToString("yyyy-MM-dd"))
+                .Add("Dirección", v.Direccion)
+                .Add("Tipo de trabajo", trabajo);
+
             var m = new InformeFotograficoModel
             {
                 Titulo = "INFORME FOTOGRÁFICO DE VISITA TÉCNICA",
                 NumeroInforme = Num(v.NumeroInforme, v.Id),
-                Descripcion = string.IsNullOrWhiteSpace(v.TipoTrabajo?.NombreTipoTrabajo)
-                    ? v.DescripcionVisita
-                    : $"{v.TipoTrabajo!.NombreTipoTrabajo}. {v.DescripcionVisita}".Trim(),
-                Observaciones = v.Observaciones
+                Descripcion = descripcion,
+                Observaciones = v.Observaciones,
+                Cabecera = cabecera,
             };
             m.Grupos = await FotosVisitaAsync(v.Id);
             var (iniV, finV) = await UrlsVisitaAsync(v.Id);

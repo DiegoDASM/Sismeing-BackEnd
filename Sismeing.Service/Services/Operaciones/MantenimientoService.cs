@@ -29,6 +29,7 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.Mantenimientos
                 .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.Empresa)
                 .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Proyecto)
                 .Include(m => m.Instalacion)
                     .ThenInclude(i => i!.Equipo)
                 .Include(m => m.Instalacion)
@@ -44,6 +45,7 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.Mantenimientos
                 .Include(m => m.Equipo).ThenInclude(e => e!.Area).ThenInclude(a => a!.Empresa)
                 .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
+                .Include(m => m.Equipo).ThenInclude(e => e!.Proyecto)
                 .Include(m => m.Instalacion)
                     .ThenInclude(i => i!.Equipo)
                 .Include(m => m.Instalacion)
@@ -177,6 +179,7 @@ namespace Sismeing.Service.Services.Operaciones
             var entry = _context.Entry(existingItem);
             entry.CurrentValues.SetValues(item);
             EntityUpdateHelper.PreservarCamposRegistro(entry);
+            EntityUpdateHelper.PreservarSiVacio(entry, "NumeroInforme");
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();
