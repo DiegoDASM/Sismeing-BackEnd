@@ -12,9 +12,10 @@ namespace Sismeing.Service.Services.Catalogo
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
 
-        public Tipo_MantenimientoService(SupaBaseDBcontext context)
+        public Tipo_MantenimientoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
         {
             _context = context;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<IEnumerable<Tipo_Mantenimiento>> GetAllAsync()

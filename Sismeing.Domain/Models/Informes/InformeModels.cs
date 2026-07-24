@@ -106,6 +106,29 @@ namespace Sismeing.Domain.Models.Informes
     }
 
     /// <summary>
+    /// Cabecera del formato oficial de SISMEING: ficha del equipo en dos columnas
+    /// (EQUIPO / N° SERIE, MARCA / MODELO, ÁREA / CAPACIDAD, CÓDIGO / POTENCIA).
+    /// La descripción del trabajo y el número de informe salen del propio modelo.
+    ///
+    /// Los campos se rellenan en el orden en que se agregan y la plantilla los
+    /// reparte de dos en dos por fila, así que el orden importa.
+    /// </summary>
+    public class InformeCabecera
+    {
+        public List<InformeCampo> Campos { get; set; } = new();
+
+        public bool TieneCampos => Campos.Count > 0;
+
+        /// <summary>Agrega el campo solo si tiene valor. Devuelve la cabecera (encadenable).</summary>
+        public InformeCabecera Add(string etiqueta, string? valor)
+        {
+            if (!string.IsNullOrWhiteSpace(valor))
+                Campos.Add(new InformeCampo { Etiqueta = etiqueta, Valor = valor! });
+            return this;
+        }
+    }
+
+    /// <summary>
     /// Modelo genérico para el informe FOTOGRÁFICO (mismo para los tres módulos).
     /// Se llena con las fotos subidas (agrupadas por tipo) y las descripciones/observaciones del registro.
     /// </summary>
@@ -115,6 +138,9 @@ namespace Sismeing.Domain.Models.Informes
         public string NumeroInforme { get; set; } = "";
         public string? Descripcion { get; set; }                 // Derivada del trabajo/tipo realizado
         public string? Observaciones { get; set; }
+
+        // Ficha del equipo que encabeza la hoja (formato oficial).
+        public InformeCabecera Cabecera { get; set; } = new();
 
         public List<InformeFotoGrupo> Grupos { get; set; } = new();
 

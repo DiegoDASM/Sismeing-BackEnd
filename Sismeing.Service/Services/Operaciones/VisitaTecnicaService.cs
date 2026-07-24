@@ -38,10 +38,35 @@ namespace Sismeing.Service.Services.Operaciones
                 .FirstOrDefaultAsync(v => v.Id == id);
         }
 
+        // Número de informe automático y secuencial por año: VT-2026-0001.
+        // La visita evalúa un prospecto (puede no tener empresa registrada), por
+        // eso la secuencia es global por año y no por empresa como en los demás
+        // informes.
+        private async Task<string> SiguienteNumeroInformeAsync()
+        {
+            var anio = DateTime.UtcNow.Year;
+            var prefijo = $"VT-{anio}-";
+
+            var ultimo = await _context.VisitasTecnicas
+                .Where(v => v.NumeroInforme != null && v.NumeroInforme.StartsWith(prefijo))
+                .Select(v => v.NumeroInforme!)
+                .ToListAsync();
+
+            var siguiente = ultimo
+                .Select(n => int.TryParse(n[prefijo.Length..], out var x) ? x : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+
+            return $"{prefijo}{siguiente:D4}";
+        }
+
         public async Task<Visita_Tecnica> CreateAsync(Visita_Tecnica item, string usuarioRegistro)
         {
             item.FechaVisita = EntityUpdateHelper.AsegurarUtc(item.FechaVisita);
             item.Activo = true;
+            // Número de informe automático (si no vino uno manual).
+            if (string.IsNullOrWhiteSpace(item.NumeroInforme))
+                item.NumeroInforme = await SiguienteNumeroInformeAsync();
             item.UsuarioRegistro = usuarioRegistro;
             item.FechaRegistro = DateTime.UtcNow;
             item.IpRegistro = _auditoriaService.ObtenerIp();
@@ -80,6 +105,7 @@ namespace Sismeing.Service.Services.Operaciones
             var entry = _context.Entry(existingItem);
             entry.CurrentValues.SetValues(item);
             EntityUpdateHelper.PreservarCamposRegistro(entry);
+            EntityUpdateHelper.PreservarSiVacio(entry, "NumeroInforme");
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();

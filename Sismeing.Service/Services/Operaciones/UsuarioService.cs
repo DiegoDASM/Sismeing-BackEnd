@@ -142,8 +142,9 @@ namespace Sismeing.Service.Services.Operaciones
 
         // ── Invitación de usuario ─────────────────────────────────────────────
         // Crea (o reutiliza) un usuario "pendiente" con solo el correo y le envía
-        // un correo con el enlace para que establezca su propia contraseña.
-        // rolId nulo => rol Cliente (invitación de encargado).
+        // un correo con el enlace para completar su registro.
+        // rolId opcional: sin él se asume "Cliente" (invitación de encargado
+        // desde la ficha del cliente, que no elige rol).
         public async Task InvitarUsuarioAsync(string correo, int? rolId, int empresaId, string usuarioRegistro)
         {
             correo = (correo ?? string.Empty).Trim().ToLower();
@@ -152,7 +153,7 @@ namespace Sismeing.Service.Services.Operaciones
 
             var rol = rolId.HasValue
                 ? await _context.Roles.FirstOrDefaultAsync(r => r.Id == rolId.Value && r.Activo)
-                    ?? throw new InvalidOperationException("El rol seleccionado no existe.")
+                    ?? throw new InvalidOperationException("El rol seleccionado no existe o está inactivo.")
                 : await _context.Roles.FirstOrDefaultAsync(r => r.NombreRol == "Cliente" && r.Activo)
                     ?? throw new InvalidOperationException("No existe el rol 'Cliente' en el catálogo.");
 

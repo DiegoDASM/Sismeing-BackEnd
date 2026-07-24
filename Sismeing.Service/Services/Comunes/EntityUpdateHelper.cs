@@ -24,6 +24,22 @@ namespace Sismeing.Service.Services.Comunes
             }
         }
 
+        // Campos que el servidor genera solo una vez (ej. NumeroInforme) y que el
+        // formulario ya no envía: si el cliente manda null/vacío, se conserva el
+        // valor original en lugar de borrarlo.
+        public static void PreservarSiVacio(EntityEntry entry, params string[] campos)
+        {
+            foreach (var prop in entry.Properties)
+            {
+                if (!campos.Contains(prop.Metadata.Name)) continue;
+                if (prop.CurrentValue is null || (prop.CurrentValue is string s && string.IsNullOrWhiteSpace(s)))
+                {
+                    prop.CurrentValue = prop.OriginalValue;
+                    prop.IsModified = false;
+                }
+            }
+        }
+
         // Las fechas que llegan del cliente en JSON (ej. "2026-06-12") se
         // deserializan con Kind=Unspecified y Npgsql no las acepta en columnas
         // timestamp with time zone. Se marcan como UTC.
