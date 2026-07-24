@@ -23,5 +23,13 @@ namespace Sismeing.Domain.Entities.Catalogo
         public string? Potencia { get; set; }
         [Column("anio_fabricacion")]
         public short? AnioFabricacion { get; set; }
+
+        // Tipo de equipo al que pertenece el modelo. Opcional: los modelos
+        // anteriores a esta columna quedan sin tipo hasta asignárselo.
+        [Column("tipo_id")]
+        public int? TipoId { get; set; }
+
+        [ForeignKey("TipoId")]
+        public virtual Tipo_Equipo? TipoEquipo { get; set; }
     }
 }

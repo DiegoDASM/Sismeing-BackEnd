@@ -13,5 +13,6 @@ namespace Sismeing.Service.EntitiesDTO.Catalogo
         public string? Capacidad { get; set; }
         public string? Potencia { get; set; }
         public short? AnioFabricacion { get; set; }
+        public int? TipoId { get; set; }
     }
 }
