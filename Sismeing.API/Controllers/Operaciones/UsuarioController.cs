@@ -94,6 +94,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPatch("{id:int}/activar")]
+        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
         public async Task<ActionResult> Activar(int id)
         {
             try
@@ -201,7 +202,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
-        [Authorize(Roles = "Administrador,Supervisor")]
+        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
         public async Task<ActionResult> Create([FromBody] Usuario item)
         {
             try
@@ -231,6 +232,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
         public async Task<ActionResult> Update(int id, [FromBody] Usuario item)
         {
             try
@@ -253,6 +255,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
         public async Task<ActionResult> Delete(int id)
         {
             try
@@ -309,7 +312,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("invitar")]
-        [Authorize(Roles = "Administrador,Supervisor")]
+        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
         public async Task<ActionResult> Invitar([FromBody] InvitarEncargadoDto dto)
         {
             try

@@ -63,6 +63,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpPost]
+        [Authorize(Roles = "Administrador,Supervisor,Tecnico,SuperAdmin")]
         public async Task<ActionResult> Create([FromBody] Trabajo item)
         {
             try
@@ -94,6 +95,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Administrador,Supervisor,Tecnico,SuperAdmin")]
         public async Task<ActionResult> Update(int id, [FromBody] Trabajo item)
         {
             try
@@ -116,6 +118,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Administrador,Supervisor,Tecnico,SuperAdmin")]
         public async Task<ActionResult> Delete(int id)
         {
             try

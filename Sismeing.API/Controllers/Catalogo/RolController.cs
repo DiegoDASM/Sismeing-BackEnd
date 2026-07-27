@@ -6,7 +6,9 @@ using Sismeing.Service.Interfaces.Catalogo;
 
 namespace Sismeing.API.Controllers.Catalogo
 {
-    //[Authorize]
+    // Solo autenticados pueden leer roles; crearlos/editarlos/borrarlos es
+    // exclusivo del SuperAdmin (los roles son a nivel de plataforma).
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class RolController : Controller
@@ -49,6 +51,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpPost]
+        [Authorize(Roles = "SuperAdmin")]
         public async Task<ActionResult> Create([FromBody] Rol item)
         {
             try
@@ -65,6 +68,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "SuperAdmin")]
         public async Task<ActionResult> Update(int id, [FromBody] Rol item)
         {
             try
@@ -87,6 +91,7 @@ namespace Sismeing.API.Controllers.Catalogo
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "SuperAdmin")]
         public async Task<ActionResult> Delete(int id)
         {
             try
