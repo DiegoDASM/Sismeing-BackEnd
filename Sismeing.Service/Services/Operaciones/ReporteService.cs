@@ -65,6 +65,14 @@ namespace Sismeing.Service.Services.Operaciones
         private static string? NombreCompleto(Usuario? u) =>
             u == null ? null : $"{u.Nombre} {u.Apellido}".Trim();
 
+        // Nombres de los tecnicos colaboradores separados por coma (null si no hay).
+        private static string? ColaboradoresTexto(IEnumerable<Usuario?>? usuarios)
+        {
+            if (usuarios == null) return null;
+            var nombres = usuarios.Select(NombreCompleto).Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+            return nombres.Count > 0 ? string.Join(", ", nombres) : null;
+        }
+
         private Task<List<string>> UrlsAsync(IQueryable<string> q) => q.ToListAsync();
 
         private static List<InformeFotoGrupo> Grupos(List<string> inicial, List<string> final) => new()
@@ -199,6 +207,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Include(x => x.Area).ThenInclude(a => a!.Empresa)
                 .Include(x => x.Area).ThenInclude(a => a!.DireccionEmpresa)
                 .Include(x => x.Tecnico)
+                .Include(x => x.Colaboradores).ThenInclude(c => c.Usuario)
                 .Include(x => x.Estado)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (i == null) return null;
@@ -214,6 +223,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Add("Empresa", i.Area?.Empresa?.Nombre)
                 .Add("Orden de Trabajo", i.OrdenTrabajo)
                 .Add("Responsable", NombreCompleto(i.Tecnico))
+                .Add("Colaboradores", ColaboradoresTexto(i.Colaboradores?.Select(c => c.Usuario)))
                 .Add("Dirección", i.Area?.DireccionEmpresa?.Direccion)
                 .Add("Fecha de instalación", i.FechaInicio)
                 .Add("Fecha de finalización", i.FechaFin)
@@ -287,6 +297,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Include(m => m.Instalacion).ThenInclude(i => i!.Area).ThenInclude(a => a!.Empresa)
                 .Include(m => m.Instalacion).ThenInclude(i => i!.Area).ThenInclude(a => a!.DireccionEmpresa)
                 .Include(m => m.Tecnico)
+                .Include(m => m.Colaboradores).ThenInclude(c => c.Usuario)
                 .Include(m => m.Encargado)
                 .Include(m => m.Supervisor)
                 .Include(m => m.TipoMantenimiento)
@@ -311,6 +322,7 @@ namespace Sismeing.Service.Services.Operaciones
             m.Secciones.Add(new InformeSeccion { Titulo = "Datos del Servicio" }
                 .Add("Empresa", area?.Empresa?.Nombre)
                 .Add("Responsable", NombreCompleto(x.Tecnico))
+                .Add("Colaboradores", ColaboradoresTexto(x.Colaboradores?.Select(c => c.Usuario)))
                 .Add("Persona encargada", NombreCompleto(x.Encargado))
                 .Add("Supervisor", NombreCompleto(x.Supervisor))
                 .Add("Tipo de mantenimiento", x.TipoMantenimiento?.NombreTipoMantenimiento)

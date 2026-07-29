@@ -10,16 +10,22 @@ namespace Sismeing.Service.Services.Operaciones
     {
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
+        private readonly IUsuarioContext _usuarioContext;
 
-        public EmpresaService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
+        public EmpresaService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, IUsuarioContext usuarioContext)
         {
             _context = context;
             _auditoriaService = auditoriaService;
+            _usuarioContext = usuarioContext;
         }
 
         public async Task<IEnumerable<Empresa>> GetAllAsync()
         {
-            return await _context.Empresas.ToListAsync();
+            var query = _context.Empresas.AsQueryable();
+            // El Cliente solo puede ver su propia empresa.
+            if (_usuarioContext.EsCliente && _usuarioContext.EmpresaId is int empId)
+                query = query.Where(e => e.Id == empId);
+            return await query.ToListAsync();
         }
 
         public async Task<Empresa?> GetByIdAsync(int id)

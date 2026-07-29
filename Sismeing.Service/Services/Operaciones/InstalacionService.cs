@@ -12,23 +12,32 @@ namespace Sismeing.Service.Services.Operaciones
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
         private readonly INotificacionService _notificacionService;
+        private readonly IUsuarioContext _usuarioContext;
 
-        public InstalacionService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, INotificacionService notificacionService)
+        public InstalacionService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, INotificacionService notificacionService, IUsuarioContext usuarioContext)
         {
             _context = context;
             _auditoriaService = auditoriaService;
             _notificacionService = notificacionService;
+            _usuarioContext = usuarioContext;
         }
 
         public async Task<IEnumerable<Instalacion>> GetAllAsync()
         {
-            return await _context.Instalaciones
+            var query = _context.Instalaciones
                 .Include(i => i.Equipo).ThenInclude(e => e.Marca)
                 .Include(i => i.Equipo).ThenInclude(e => e.Proyecto)
                 .Include(i => i.Area).ThenInclude(a => a.Empresa)
                 .Include(i => i.Tecnico)
+                .Include(i => i.Colaboradores).ThenInclude(c => c.Usuario)
                 .Include(i => i.Estado)
-                .ToListAsync();
+                .AsQueryable();
+
+            // El Cliente solo ve las instalaciones de su empresa (por el area).
+            if (_usuarioContext.EsCliente && _usuarioContext.EmpresaId is int empId)
+                query = query.Where(i => i.Area != null && i.Area.EmpresaId == empId);
+
+            return await query.ToListAsync();
         }
 
         public async Task<Instalacion?> GetByIdAsync(int id)
@@ -38,6 +47,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Include(i => i.Equipo).ThenInclude(e => e.Proyecto)
                 .Include(i => i.Area).ThenInclude(a => a.Empresa)
                 .Include(i => i.Tecnico)
+                .Include(i => i.Colaboradores).ThenInclude(c => c.Usuario)
                 .Include(i => i.Estado)
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
@@ -71,6 +81,32 @@ namespace Sismeing.Service.Services.Operaciones
             return seqs.FirstOrDefault().ToString("D4");
         }
 
+        // Reemplaza los colaboradores (tecnicos adicionales) de la instalacion.
+        // ids == null => no se toca; excluye siempre al responsable.
+        private async Task SincronizarColaboradoresAsync(int instalacionId, int responsableId, List<int>? ids)
+        {
+            if (ids == null) return;
+            var deseados = ids.Where(uid => uid != responsableId).Distinct().ToList();
+            var actuales = await _context.InstalacionTecnicos.Where(t => t.InstalacionId == instalacionId).ToListAsync();
+
+            var aEliminar = actuales.Where(a => !deseados.Contains(a.UsuarioId)).ToList();
+            if (aEliminar.Count > 0) _context.InstalacionTecnicos.RemoveRange(aEliminar);
+
+            var existentes = actuales.Select(a => a.UsuarioId).ToHashSet();
+            foreach (var uid in deseados.Where(uid => !existentes.Contains(uid)))
+                _context.InstalacionTecnicos.Add(new Instalacion_Tecnico { InstalacionId = instalacionId, UsuarioId = uid });
+
+            await _context.SaveChangesAsync();
+        }
+
+        // Responsable + colaboradores: destinatarios de las notificaciones del servicio.
+        private async Task<List<int>> TecnicoIdsAsync(int instalacionId, int responsableId)
+        {
+            var colabs = await _context.InstalacionTecnicos
+                .Where(t => t.InstalacionId == instalacionId).Select(t => t.UsuarioId).ToListAsync();
+            return new[] { responsableId }.Concat(colabs).Distinct().ToList();
+        }
+
         public async Task<Instalacion> CreateAsync(Instalacion item, string usuarioRegistro)
         {
             NormalizarFechas(item);
@@ -86,6 +122,8 @@ namespace Sismeing.Service.Services.Operaciones
 
             _context.Instalaciones.Add(item);
             await _context.SaveChangesAsync();
+
+            await SincronizarColaboradoresAsync(item.Id, item.TecnicoId, item.ColaboradorIds);
 
             return item;
         }
@@ -104,15 +142,16 @@ namespace Sismeing.Service.Services.Operaciones
 
             try
             {
-                await _notificacionService.CreateAsync(new Notificacion
-                {
-                    UsuarioId = item.TecnicoId,
-                    Titulo = "Instalación Completada",
-                    Mensaje = $"La instalación {(string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme)} fue aprobada y marcada como Completada.",
-                    Tipo = "completado",
-                    Origen = "instalacion",
-                    ReferenciaId = item.Id,
-                }, usuario);
+                foreach (var uid in await TecnicoIdsAsync(item.Id, item.TecnicoId))
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = uid,
+                        Titulo = "Instalación Completada",
+                        Mensaje = $"La instalación {(string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme)} fue aprobada y marcada como Completada.",
+                        Tipo = "completado",
+                        Origen = "instalacion",
+                        ReferenciaId = item.Id,
+                    }, usuario);
             }
             catch (Exception ex) { Console.WriteLine($"Error notificación aprobación instalación: {ex.GetBaseException().Message}"); }
 
@@ -137,7 +176,9 @@ namespace Sismeing.Service.Services.Operaciones
 
             await _context.SaveChangesAsync();
 
-            // Notificación in-app al técnico cuando cambia el estado
+            await SincronizarColaboradoresAsync(existingItem.Id, existingItem.TecnicoId, item.ColaboradorIds);
+
+            // Notificación in-app al técnico (responsable y colaboradores) cuando cambia el estado
             if (existingItem.EstadoId != estadoAnteriorId)
             {
                 try
@@ -146,15 +187,16 @@ namespace Sismeing.Service.Services.Operaciones
                     var nombreEstado = estado?.NombreEstado ?? "Actualizada";
                     var informe = string.IsNullOrEmpty(existingItem.NumeroInforme) ? $"#{existingItem.Id}" : existingItem.NumeroInforme;
 
-                    await _notificacionService.CreateAsync(new Notificacion
-                    {
-                        UsuarioId = existingItem.TecnicoId,
-                        Titulo = $"Instalación {nombreEstado}",
-                        Mensaje = $"La instalación {informe} cambió de estado a \"{nombreEstado}\".",
-                        Tipo = NotificacionService.TipoPorEstado(nombreEstado),
-                        Origen = "instalacion",
-                        ReferenciaId = existingItem.Id,
-                    }, usuarioModificacion);
+                    foreach (var uid in await TecnicoIdsAsync(existingItem.Id, existingItem.TecnicoId))
+                        await _notificacionService.CreateAsync(new Notificacion
+                        {
+                            UsuarioId = uid,
+                            Titulo = $"Instalación {nombreEstado}",
+                            Mensaje = $"La instalación {informe} cambió de estado a \"{nombreEstado}\".",
+                            Tipo = NotificacionService.TipoPorEstado(nombreEstado),
+                            Origen = "instalacion",
+                            ReferenciaId = existingItem.Id,
+                        }, usuarioModificacion);
                 }
                 catch (Exception ex)
                 {

@@ -45,5 +45,14 @@ namespace Sismeing.Domain.Entities.Operaciones
         public virtual Usuario? Encargado { get; set; }
         [ForeignKey("TipoTrabajoId")]
         public virtual Tipo_Trabajo? TipoTrabajo { get; set; }
+
+        // Conjunto de tipos de trabajo que cubre el contrato (Instalacion y/o
+        // Mantenimiento). TipoTrabajoId queda como tipo primario/compatibilidad.
+        public virtual ICollection<Contrato_TipoTrabajo> TiposTrabajo { get; set; } = new List<Contrato_TipoTrabajo>();
+
+        // Ids de tipos de trabajo que envia el formulario (no es columna). El
+        // servicio los persiste en contrato_tipo_trabajo tras guardar.
+        [NotMapped]
+        public List<int>? TipoTrabajoIds { get; set; }
     }
 }

@@ -49,6 +49,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Create([FromBody] Visita_Tecnica item)
         {
             try
@@ -65,6 +66,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Update(int id, [FromBody] Visita_Tecnica item)
         {
             try
@@ -87,6 +89,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Delete(int id)
         {
             try
@@ -106,6 +109,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPatch("{id:int}/activar")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Activar(int id)
         {
             try

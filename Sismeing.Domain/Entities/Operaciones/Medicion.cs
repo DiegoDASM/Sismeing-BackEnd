@@ -43,6 +43,9 @@ namespace Sismeing.Domain.Entities.Operaciones
         public int EquipoId { get; set; }
         [Column("informe_id")]
         public int? InformeId { get; set; }
+        // Distingue si el informe_id es de una instalacion o de un mantenimiento.
+        [Column("origen")]
+        public string? Origen { get; set; }
         [Column("area_id")]
         public int AreaId { get; set; }
         [Column("inicial")]

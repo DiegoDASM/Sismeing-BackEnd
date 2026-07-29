@@ -27,10 +27,11 @@ namespace Sismeing.Service.Services.Operaciones
             return await _context.Mediciones.FindAsync(id);
         }
 
-        public async Task<IEnumerable<Medicion>> GetByInformeAsync(int informeId, int equipoId)
+        public async Task<IEnumerable<Medicion>> GetByInformeAsync(int informeId, int equipoId, string? origen = null)
         {
             return await _context.Mediciones
-                .Where(m => m.InformeId == informeId && m.EquipoId == equipoId && m.Activo)
+                .Where(m => m.InformeId == informeId && m.EquipoId == equipoId && m.Activo
+                            && (origen == null || m.Origen == origen))
                 .OrderByDescending(m => m.Inicial)
                 .ToListAsync();
         }
@@ -72,13 +73,16 @@ namespace Sismeing.Service.Services.Operaciones
         /// Reemplaza todas las mediciones (inicial y final) de un informe+equipo:
         /// da de baja las anteriores y guarda las nuevas. Sirve para crear y editar.
         /// </summary>
-        public async Task<IEnumerable<Medicion>> ReemplazarPorInformeAsync(int informeId, int equipoId, IEnumerable<Medicion> items, string usuarioRegistro)
+        public async Task<IEnumerable<Medicion>> ReemplazarPorInformeAsync(int informeId, int equipoId, IEnumerable<Medicion> items, string usuarioRegistro, string? origen = null)
         {
             var now = DateTime.UtcNow;
             var ip = _auditoriaService.ObtenerIp();
 
+            // Solo se dan de baja las del mismo origen: asi el reemplazo de una
+            // instalacion no borra las mediciones del mantenimiento con igual id.
             var anteriores = await _context.Mediciones
-                .Where(m => m.InformeId == informeId && m.EquipoId == equipoId && m.Activo)
+                .Where(m => m.InformeId == informeId && m.EquipoId == equipoId && m.Activo
+                            && (origen == null || m.Origen == origen))
                 .ToListAsync();
             foreach (var ant in anteriores)
             {
@@ -94,6 +98,7 @@ namespace Sismeing.Service.Services.Operaciones
                 item.Id = 0;
                 item.InformeId = informeId;
                 item.EquipoId = equipoId;
+                item.Origen = origen ?? item.Origen;
                 item.Activo = true;
                 item.UsuarioRegistro = usuarioRegistro;
                 item.FechaRegistro = now;

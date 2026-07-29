@@ -78,5 +78,13 @@ namespace Sismeing.Domain.Entities.Operaciones
         public virtual Usuario? Supervisor { get; set; }
         [ForeignKey("EncargadoId")]
         public virtual Usuario? Encargado { get; set; }
+
+        // Tecnicos colaboradores (adicionales al responsable TecnicoId).
+        public virtual ICollection<Mantenimiento_Tecnico> Colaboradores { get; set; } = new List<Mantenimiento_Tecnico>();
+
+        // Ids de colaboradores que envia el formulario (no es columna). El servicio
+        // los persiste en mantenimiento_tecnico tras guardar. Null = no tocar.
+        [NotMapped]
+        public List<int>? ColaboradorIds { get; set; }
     }
 }

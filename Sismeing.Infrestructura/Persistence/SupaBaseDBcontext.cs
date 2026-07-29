@@ -36,5 +36,10 @@ namespace Sismeing.Infrestructura.Persistence
         public DbSet<Foto_VisitaTecnica> FotosVisitaTecnica { get; set; }
         public DbSet<Medicion> Mediciones { get; set; }
         public DbSet<Notificacion> Notificaciones { get; set; }
+
+        // ── Tablas puente (varios tecnicos por servicio, tipos de trabajo del contrato) ──
+        public DbSet<Instalacion_Tecnico> InstalacionTecnicos { get; set; }
+        public DbSet<Mantenimiento_Tecnico> MantenimientoTecnicos { get; set; }
+        public DbSet<Contrato_TipoTrabajo> ContratoTiposTrabajo { get; set; }
     }
 }

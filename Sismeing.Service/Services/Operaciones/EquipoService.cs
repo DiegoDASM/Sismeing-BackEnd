@@ -10,22 +10,32 @@ namespace Sismeing.Service.Services.Operaciones
     {
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
+        private readonly IUsuarioContext _usuarioContext;
 
-        public EquipoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
+        public EquipoService(SupaBaseDBcontext context, IAuditoriaService auditoriaService, IUsuarioContext usuarioContext)
         {
             _context = context;
             _auditoriaService = auditoriaService;
+            _usuarioContext = usuarioContext;
         }
 
         public async Task<IEnumerable<Equipo>> GetAllAsync()
         {
-            return await _context.Equipos
+            var query = _context.Equipos
                 .Include(e => e.Marca)
                 .Include(e => e.TipoEquipo)
                 .Include(e => e.Modelo)
                 .Include(e => e.Proyecto)
                 .Include(e => e.Area)
-                .ToListAsync();
+                .AsQueryable();
+
+            // El Cliente solo ve los equipos de su empresa (por area o por proyecto).
+            if (_usuarioContext.EsCliente && _usuarioContext.EmpresaId is int empId)
+                query = query.Where(e =>
+                    (e.Area != null && e.Area.EmpresaId == empId) ||
+                    (e.Proyecto != null && e.Proyecto.EmpresaId == empId));
+
+            return await query.ToListAsync();
         }
 
         public async Task<Equipo?> GetByIdAsync(int id)

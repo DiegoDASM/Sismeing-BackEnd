@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Service;
@@ -50,6 +51,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Delete(int id)
         {
             try
@@ -83,6 +85,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("visita/{visitaTecnicaId:int}/upload")]
+        [Authorize(Policy = "Interno")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult> UploadFotos(int visitaTecnicaId, List<IFormFile> files, [FromQuery] string tipo = "inicial")
         {

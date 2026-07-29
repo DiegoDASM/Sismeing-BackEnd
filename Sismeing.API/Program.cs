@@ -63,6 +63,11 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    // Personal interno (bloquea al Cliente): crear equipos/servicios, subir fotos, mediciones.
+    options.AddPolicy("Interno", p => p.RequireRole("Administrador", "Supervisor", "Tecnico", "SuperAdmin"));
+    // Gestion (bloquea Cliente y Tecnico): editar/borrar/aprobar, y todo lo de clientes/contratos.
+    options.AddPolicy("Gestion", p => p.RequireRole("Administrador", "Supervisor", "SuperAdmin"));
 });
 
 // ── CORS ─────────────────────────────────────────────────────────────────────

@@ -43,5 +43,13 @@ namespace Sismeing.Domain.Entities.Operaciones
         public virtual Usuario? Tecnico { get; set; }
         [ForeignKey("EstadoId")]
         public virtual Estado? Estado { get; set; }
+
+        // Tecnicos colaboradores (adicionales al responsable TecnicoId).
+        public virtual ICollection<Instalacion_Tecnico> Colaboradores { get; set; } = new List<Instalacion_Tecnico>();
+
+        // Ids de colaboradores que envia el formulario (no es columna). El servicio
+        // los persiste en instalacion_tecnico tras guardar. Null = no tocar.
+        [NotMapped]
+        public List<int>? ColaboradorIds { get; set; }
     }
 }

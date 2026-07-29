@@ -52,6 +52,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Create([FromBody] Foto_Instalacion item)
         {
             try
@@ -68,6 +69,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Update(int id, [FromBody] Foto_Instalacion item)
         {
             try
@@ -90,6 +92,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Delete(int id)
         {
             try
@@ -123,6 +126,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("instalacion/{instalacionId:int}/upload")]
+        [Authorize(Policy = "Interno")]
         [Consumes("multipart/form-data")]
         public async Task<ActionResult> UploadFotos(int instalacionId, List<IFormFile> files, [FromQuery] string tipo = "inicial")
         {

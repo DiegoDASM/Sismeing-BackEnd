@@ -49,11 +49,11 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpGet("informe/{informeId:int}/equipo/{equipoId:int}")]
-        public async Task<ActionResult> GetByInforme(int informeId, int equipoId)
+        public async Task<ActionResult> GetByInforme(int informeId, int equipoId, [FromQuery] string? origen = null)
         {
             try
             {
-                var data = await _medicionService.GetByInformeAsync(informeId, equipoId);
+                var data = await _medicionService.GetByInformeAsync(informeId, equipoId, origen);
                 return Ok(new JsonResponse<IEnumerable<Medicion>>(data));
             }
             catch (Exception ex)
@@ -63,6 +63,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Create([FromBody] Medicion item)
         {
             try
@@ -79,6 +80,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("batch")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> CreateBatch([FromBody] List<Medicion> items)
         {
             try
@@ -97,12 +99,13 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("informe/{informeId:int}/equipo/{equipoId:int}")]
-        public async Task<ActionResult> ReemplazarPorInforme(int informeId, int equipoId, [FromBody] List<Medicion> items)
+        [Authorize(Policy = "Interno")]
+        public async Task<ActionResult> ReemplazarPorInforme(int informeId, int equipoId, [FromBody] List<Medicion> items, [FromQuery] string? origen = null)
         {
             try
             {
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
-                var result = await _medicionService.ReemplazarPorInformeAsync(informeId, equipoId, items ?? new List<Medicion>(), userEmail);
+                var result = await _medicionService.ReemplazarPorInformeAsync(informeId, equipoId, items ?? new List<Medicion>(), userEmail, origen);
                 return Ok(new JsonResponse<IEnumerable<Medicion>>(result));
             }
             catch (Exception ex)
@@ -112,6 +115,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Update(int id, [FromBody] Medicion item)
         {
             try
@@ -134,6 +138,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "Interno")]
         public async Task<ActionResult> Delete(int id)
         {
             try

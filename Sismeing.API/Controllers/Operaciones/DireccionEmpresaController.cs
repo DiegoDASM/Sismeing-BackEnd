@@ -63,6 +63,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Create([FromBody] Direccion_Empresa item)
         {
             try
@@ -79,6 +80,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Update(int id, [FromBody] Direccion_Empresa item)
         {
             try
@@ -101,6 +103,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Delete(int id)
         {
             try

@@ -19,6 +19,7 @@ namespace Sismeing.API.Extensions
             services.AddScoped<IEmailPreviewService, EmailPreviewService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IAuditoriaService, AuditoriaService>();
+            services.AddScoped<IUsuarioContext, UsuarioContext>();
 
 
             // ── Operaciones ──

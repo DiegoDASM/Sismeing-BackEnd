@@ -41,6 +41,9 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("rol_id")]
         public int RolId { get; set; }
 
+        // Nunca debe salir en las respuestas JSON (se incluye vía navegaciones
+        // Tecnico/Colaboradores/etc.). Sigue disponible para el login en el backend.
+        [System.Text.Json.Serialization.JsonIgnore]
         [Column("Contrasena")]
         public string Contrasena { get; set; } = null!;
 
