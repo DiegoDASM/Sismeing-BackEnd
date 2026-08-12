@@ -5,6 +5,7 @@ using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Domain.Enums;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
+using Sismeing.Service.Services.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
 namespace Sismeing.Service.Services.Operaciones
@@ -101,7 +102,21 @@ namespace Sismeing.Service.Services.Operaciones
             var existingItem = await _context.Usuarios.FindAsync(id);
             if (existingItem == null) return false;
 
-            _context.Entry(existingItem).CurrentValues.SetValues(item);
+            var entry = _context.Entry(existingItem);
+            entry.CurrentValues.SetValues(item);
+            EntityUpdateHelper.PreservarCamposRegistro(entry);
+
+            // Contrasena e InvitacionToken llevan [JsonIgnore]: nunca se deserializan
+            // del cuerpo de la peticion, asi que SetValues los dejaria en null y la
+            // cuenta quedaria sin poder iniciar sesion. La contrasena solo se cambia
+            // por CompletarRegistroAsync o el endpoint cambiar-contrasena.
+            EntityUpdateHelper.PreservarSiVacio(entry, "Contrasena", "InvitacionToken");
+
+            // El formulario de edicion no envia Activo (UpdateUsuarioDto lo omite),
+            // asi que llega como false y desactivaria la cuenta. Activar/desactivar
+            // tiene sus propios endpoints (ReactivarAsync / DeleteAsync).
+            entry.Property(u => u.Activo).IsModified = false;
+
             existingItem.UsuarioModificacion = usuarioModificacion;
             existingItem.FechaModificacion = DateTime.UtcNow;
             existingItem.IpModificacion = _auditoriaService.ObtenerIp();

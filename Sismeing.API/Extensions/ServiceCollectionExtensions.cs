@@ -16,7 +16,11 @@ namespace Sismeing.API.Extensions
         {
             // ── Comunes ──
             services.AddSingleton<ICloudinaryService, CloudinaryService>();
-            services.AddScoped<IEmailPreviewService, EmailPreviewService>();
+            // Singleton a proposito: su constructor construye un RazorLightEngine con
+            // cache en memoria. Como Scoped se creaba uno nuevo por peticion, la cache
+            // nacia vacia y Razor recompilaba la plantilla en CADA informe (segundos).
+            // El engine es thread-safe y esta pensado para compartirse.
+            services.AddSingleton<IEmailPreviewService, EmailPreviewService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IAuditoriaService, AuditoriaService>();
             services.AddScoped<IUsuarioContext, UsuarioContext>();
