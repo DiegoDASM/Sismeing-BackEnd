@@ -1,0 +1,45 @@
+# Servicio systemd para la API de SISMEING.
+# Instalar en:  /etc/systemd/system/sismeing-api.service
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sismeing-api
+#   sudo systemctl status sismeing-api
+#   journalctl -u sismeing-api -f      # ver logs en vivo
+
+[Unit]
+Description=SISMEING API (ASP.NET Core)
+After=network.target
+
+[Service]
+# Ruta donde se copian los archivos publicados (dotnet publish)
+WorkingDirectory=/opt/sismeing/api
+ExecStart=/usr/bin/dotnet /opt/sismeing/api/Sismeing.API.dll
+
+# Si el proceso muere, systemd lo levanta de nuevo. Esto es lo que hace que la
+# aplicacion "se mantenga levantada" y sobreviva a reinicios de la maquina.
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=sismeing-api
+
+# Usuario sin privilegios: si alguien compromete la app, no es root.
+User=sismeing
+Group=sismeing
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+# Kestrel escucha SOLO en localhost: nginx es la unica puerta de entrada.
+# Con 127.0.0.1 el puerto 5080 no queda expuesto a internet.
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+# Los secretos van aparte, en un archivo que solo puede leer root.
+EnvironmentFile=/etc/sismeing/api.env
+
+# Endurecimiento basico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

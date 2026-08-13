@@ -317,6 +317,23 @@ namespace Sismeing.API.Controllers.Operaciones
         {
             try
             {
+                // Solo un SuperAdmin puede crear otro SuperAdmin. El [Authorize] de
+                // arriba tambien deja pasar a Administrador y Supervisor, asi que sin
+                // esta comprobacion cualquiera de ellos podria mandar el rolId del
+                // SuperAdmin a mano y escalar privilegios.
+                if (dto.RolId.HasValue && !User.IsInRole("SuperAdmin"))
+                {
+                    var rolDestino = await _context.Roles
+                        .FirstOrDefaultAsync(r => r.Id == dto.RolId.Value);
+
+                    if (rolDestino != null &&
+                        string.Equals(rolDestino.NombreRol, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new JsonResponse<bool>(
+                            false, "Solo un SuperAdmin puede asignar el rol SuperAdmin", ResponseStatus.error));
+                    }
+                }
+
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
                 await _usuarioService.InvitarUsuarioAsync(dto.CorreoElectronico, dto.RolId, dto.EmpresaId, userEmail);
                 return Ok(new JsonResponse<bool>(true, "Invitación enviada"));

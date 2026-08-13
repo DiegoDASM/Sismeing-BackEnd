@@ -33,4 +33,12 @@
     <Folder Include="Controllers\Operaciones\" />
   </ItemGroup>
 
+  <!-- Nunca publicar estos al servidor: el de Development tiene los secretos en
+       claro y el example es solo una plantilla para el equipo. En produccion la
+       configuracion sensible llega por variables de entorno (/etc/sismeing/api.env). -->
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+    <Content Update="appsettings.example.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

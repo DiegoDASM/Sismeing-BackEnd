@@ -9,6 +9,10 @@ appsettings.Development.json
 appsettings.Staging.json
 appsettings.Production.json
 *.user
+# Copias de seguridad locales: pueden contener secretos en claro
+*.bak
+# Volcado de variables de entorno para Render: secretos en claro
+render-env.txt
 
 # Migraciones EF generadas automáticamente (opcional: quitar si quieres versionar)
 # Migrations/

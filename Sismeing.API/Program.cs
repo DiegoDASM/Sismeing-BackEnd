@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -16,8 +17,14 @@ using Sismeing.API.Extensions;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Conexión a la base de datos Supabase (PostgreSQL) ────────────────────────
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// Los secretos NO viven en appsettings.json (esta rastreado en git): llegan de
+// appsettings.Development.json en local o de variables de entorno en produccion
+// (ConnectionStrings__DefaultConnection). Por eso se valida vacio, no solo null.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "Falta 'ConnectionStrings:DefaultConnection'. Definelo en appsettings.Development.json " +
+        "o en la variable de entorno ConnectionStrings__DefaultConnection.");
 
 builder.Services.AddDbContext<SupaBaseDBcontext>(options =>
     options.UseNpgsql(connectionString));
@@ -27,8 +34,12 @@ builder.Services.AddHttpContextAccessor();
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]
-    ?? throw new InvalidOperationException("JwtSettings:SecretKey not found."));
+var jwtSecret = jwtSettings["SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+    throw new InvalidOperationException(
+        "Falta 'JwtSettings:SecretKey'. Definelo en appsettings.Development.json " +
+        "o en la variable de entorno JwtSettings__SecretKey.");
+var secretKey = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -155,7 +166,28 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-app.UseHttpsRedirection();
+
+// En produccion la app corre detras de nginx, que es quien termina el TLS y le
+// reenvia HTTP plano por el puerto local. Redirigir a HTTPS desde aqui crearia
+// un bucle infinito, asi que solo se hace en desarrollo. ForwardedHeaders deja
+// que la app lea el esquema y la IP reales del cliente (X-Forwarded-Proto/For),
+// necesario para que la auditoria no registre siempre la IP del proxy.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+else
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+        // nginx corre en la misma maquina; sin vaciar estas listas ASP.NET
+        // descarta las cabeceras por venir de un proxy "desconocido".
+        KnownNetworks = { },
+        KnownProxies = { },
+    });
+}
+
 app.UseCors("SismeingCors");
 
 app.UseAuthentication();

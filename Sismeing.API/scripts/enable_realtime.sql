@@ -1,8 +1,9 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Habilitar Supabase Realtime para las tablas del dashboard
+-- Habilitar Supabase Realtime para las tablas de la aplicación
 --
--- Ejecutar UNA sola vez en el SQL Editor de Supabase
--- (Dashboard -> SQL Editor -> New query).
+-- Ejecutar en el SQL Editor de Supabase (Dashboard -> SQL Editor -> New query).
+-- Es idempotente: se puede volver a ejecutar cada vez que se agregue una tabla
+-- a la lista de abajo.
 --
 -- Supabase Realtime lee el WAL de Postgres, por lo que los cambios hechos
 -- por la API .NET (EF Core) también generan eventos: basta con agregar las
@@ -12,19 +13,40 @@
 -- y activar las tablas.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-alter publication supabase_realtime add table
-  public.empresa,
-  public.equipo,
-  public.contrato,
-  public.visita_tecnica,
-  public.marca,
-  public.instalacion,
-  public.mantenimiento;
+-- Se agregan una por una: "add table" falla completo si alguna ya está en la
+-- publicación, y este script se re-ejecuta cada vez que aparece una tabla nueva.
+do $$
+declare
+  t text;
+  tablas text[] := array[
+    -- Operaciones
+    'empresa', 'usuario', 'contrato', 'contrato_tipo_trabajo', 'equipo',
+    'direccion_empresa', 'area_empresa',
+    'instalacion', 'instalacion_tecnico',
+    'mantenimiento', 'mantenimiento_tecnico',
+    'visita_tecnica', 'medicion', 'notificacion',
+    -- Fotos
+    'foto_instalacion', 'foto_mantenimiento', 'foto_visita_tecnica',
+    -- Catálogos
+    'marca', 'modelo', 'tipo_equipo', 'tipo_mantenimiento', 'tipo_trabajo',
+    'estado', 'rol', 'trabajo'
+  ];
+begin
+  foreach t in array tablas loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
--- Verificación: debe listar las 7 tablas
+-- Verificación: debe listar las 25 tablas
 select schemaname, tablename
 from pg_publication_tables
-where pubname = 'supabase_realtime';
+where pubname = 'supabase_realtime'
+order by tablename;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- NOTA DE SEGURIDAD (RLS):
