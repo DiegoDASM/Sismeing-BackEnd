@@ -197,6 +197,16 @@ namespace Sismeing.Service.Services.Operaciones
                             Origen = "instalacion",
                             ReferenciaId = existingItem.Id,
                         }, usuarioModificacion);
+
+                    // Si quedo esperando aprobacion, avisar tambien a los supervisores.
+                    if (nombreEstado.Contains("Esperando", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var tecnico = await _context.Usuarios.FindAsync(existingItem.TecnicoId);
+                        await _notificacionService.NotificarPendienteAprobacionAsync(
+                            "instalación", "instalacion", existingItem.Id, informe,
+                            tecnico == null ? "" : $"{tecnico.Nombre} {tecnico.Apellido}".Trim(),
+                            "", usuarioModificacion);
+                    }
                 }
                 catch (Exception ex)
                 {

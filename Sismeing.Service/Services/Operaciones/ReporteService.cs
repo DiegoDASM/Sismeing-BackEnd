@@ -37,6 +37,121 @@ namespace Sismeing.Service.Services.Operaciones
             return (dataUri, leyenda);
         }
 
+        // ── Cache de informes ───────────────────────────────────────────────────
+        // El informe se compone una sola vez y se guarda. En cada peticion se
+        // compara la fecha de generacion con la ultima modificacion del servicio
+        // de origen: si el servicio no cambio, se devuelve lo guardado; si cambio,
+        // se regenera y se reemplaza. Sin caducidad por tiempo, por lo que el
+        // informe nunca queda desactualizado.
+        private async Task<string?> DesdeCacheAsync(
+            string tipo, int id, DateTime? fechaFuente, Func<Task<string?>> generar)
+        {
+            Informe_Cache? guardado = null;
+            try
+            {
+                guardado = await _context.InformesCache
+                    .FirstOrDefaultAsync(c => c.Tipo == tipo && c.ReferenciaId == id);
+
+                if (guardado != null && fechaFuente.HasValue
+                    && guardado.FechaGeneracion >= fechaFuente.Value)
+                    return guardado.Html;
+            }
+            catch (Exception ex)
+            {
+                // Si la cache falla, se genera igual: nunca debe impedir ver un informe.
+                Console.WriteLine($"Cache de informes no disponible ({tipo}/{id}): {ex.GetBaseException().Message}");
+                return await generar();
+            }
+
+            var html = await generar();
+            if (html == null) return null;
+
+            try
+            {
+                if (guardado == null)
+                {
+                    _context.InformesCache.Add(new Informe_Cache
+                    {
+                        Tipo = tipo,
+                        ReferenciaId = id,
+                        Html = html,
+                        FechaGeneracion = DateTime.UtcNow,
+                    });
+                }
+                else
+                {
+                    guardado.Html = html;
+                    guardado.FechaGeneracion = DateTime.UtcNow;
+                }
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"No se pudo guardar el informe en cache ({tipo}/{id}): {ex.GetBaseException().Message}");
+            }
+
+            return html;
+        }
+
+        // Ultima modificacion del servicio de origen (o su alta si nunca se edito).
+        private Task<DateTime?> FechaInstalacionAsync(int id) =>
+            _context.Instalaciones.Where(x => x.Id == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+
+        private Task<DateTime?> FechaMantenimientoAsync(int id) =>
+            _context.Mantenimientos.Where(x => x.Id == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+
+        private Task<DateTime?> FechaVisitaAsync(int id) =>
+            _context.VisitasTecnicas.Where(x => x.Id == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+
+        // La hoja de vida agrega el historial del equipo, asi que tambien caduca
+        // cuando cambia cualquier instalacion o mantenimiento suyo: se toma la
+        // fecha mas reciente de las tres fuentes.
+        private async Task<DateTime?> FechaEquipoAsync(int id)
+        {
+            var equipo = await _context.Equipos.Where(x => x.Id == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+            var inst = await _context.Instalaciones.Where(x => x.EquipoId == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).ToListAsync();
+            var mant = await _context.Mantenimientos.Where(x => x.EquipoId == id)
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).ToListAsync();
+
+            var fechas = new List<DateTime?> { equipo };
+            fechas.AddRange(inst);
+            fechas.AddRange(mant);
+            return fechas.Where(f => f.HasValue).DefaultIfEmpty(null).Max();
+        }
+
+        public async Task<string?> InstalacionDatosAsync(int id) =>
+            await DesdeCacheAsync("instalacion-datos", id,
+                await FechaInstalacionAsync(id), () => InstalacionDatosGenerarAsync(id));
+
+        public async Task<string?> InstalacionFotograficoAsync(int id) =>
+            await DesdeCacheAsync("instalacion-fotografico", id,
+                await FechaInstalacionAsync(id), () => InstalacionFotograficoGenerarAsync(id));
+
+        public async Task<string?> MantenimientoDatosAsync(int id) =>
+            await DesdeCacheAsync("mantenimiento-datos", id,
+                await FechaMantenimientoAsync(id), () => MantenimientoDatosGenerarAsync(id));
+
+        public async Task<string?> MantenimientoFotograficoAsync(int id) =>
+            await DesdeCacheAsync("mantenimiento-fotografico", id,
+                await FechaMantenimientoAsync(id), () => MantenimientoFotograficoGenerarAsync(id));
+
+        public async Task<string?> VisitaDatosAsync(int id) =>
+            await DesdeCacheAsync("visita-datos", id,
+                await FechaVisitaAsync(id), () => VisitaDatosGenerarAsync(id));
+
+        public async Task<string?> VisitaFotograficoAsync(int id) =>
+            await DesdeCacheAsync("visita-fotografico", id,
+                await FechaVisitaAsync(id), () => VisitaFotograficoGenerarAsync(id));
+
+        public async Task<string?> EquipoHojaVidaAsync(int id) =>
+            await DesdeCacheAsync("equipo-hojavida", id,
+                await FechaEquipoAsync(id), () => EquipoHojaVidaGenerarAsync(id));
+
         // ── Helpers ────────────────────────────────────────────────────────────
         private static string Num(string? numeroInforme, int id) =>
             string.IsNullOrWhiteSpace(numeroInforme) ? $"#{id}" : numeroInforme!;
@@ -198,7 +313,7 @@ namespace Sismeing.Service.Services.Operaciones
         // ════════════════════════════════════════════════════════════════════════
         // INSTALACIÓN
         // ════════════════════════════════════════════════════════════════════════
-        public async Task<string?> InstalacionDatosAsync(int id)
+        private async Task<string?> InstalacionDatosGenerarAsync(int id)
         {
             var i = await _context.Instalaciones
                 .Include(x => x.Equipo).ThenInclude(e => e!.Marca)
@@ -248,7 +363,7 @@ namespace Sismeing.Service.Services.Operaciones
             return await _render.RenderTemplateAsync("InformeDatos", m);
         }
 
-        public async Task<string?> InstalacionFotograficoAsync(int id)
+        private async Task<string?> InstalacionFotograficoGenerarAsync(int id)
         {
             var i = await _context.Instalaciones
                 .Include(x => x.Equipo).ThenInclude(e => e!.Marca)
@@ -283,7 +398,7 @@ namespace Sismeing.Service.Services.Operaciones
         // ════════════════════════════════════════════════════════════════════════
         // MANTENIMIENTO
         // ════════════════════════════════════════════════════════════════════════
-        public async Task<string?> MantenimientoDatosAsync(int id)
+        private async Task<string?> MantenimientoDatosGenerarAsync(int id)
         {
             var x = await _context.Mantenimientos
                 .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
@@ -368,7 +483,7 @@ namespace Sismeing.Service.Services.Operaciones
             return await _render.RenderTemplateAsync("InformeDatos", m);
         }
 
-        public async Task<string?> MantenimientoFotograficoAsync(int id)
+        private async Task<string?> MantenimientoFotograficoGenerarAsync(int id)
         {
             var x = await _context.Mantenimientos
                 .Include(m => m.Equipo).ThenInclude(e => e!.Marca)
@@ -420,7 +535,7 @@ namespace Sismeing.Service.Services.Operaciones
         // ════════════════════════════════════════════════════════════════════════
         // VISITA TÉCNICA
         // ════════════════════════════════════════════════════════════════════════
-        public async Task<string?> VisitaDatosAsync(int id)
+        private async Task<string?> VisitaDatosGenerarAsync(int id)
         {
             var v = await _context.VisitasTecnicas
                 .Include(x => x.Empresa)
@@ -452,7 +567,7 @@ namespace Sismeing.Service.Services.Operaciones
             return await _render.RenderTemplateAsync("InformeDatos", m);
         }
 
-        public async Task<string?> VisitaFotograficoAsync(int id)
+        private async Task<string?> VisitaFotograficoGenerarAsync(int id)
         {
             var v = await _context.VisitasTecnicas
                 .Include(x => x.Empresa)
@@ -504,7 +619,7 @@ namespace Sismeing.Service.Services.Operaciones
         // ════════════════════════════════════════════════════════════════════════
         // HOJA DE VIDA DEL EQUIPO (ficha técnica completa, destino del código QR)
         // ════════════════════════════════════════════════════════════════════════
-        public async Task<string?> EquipoHojaVidaAsync(int id)
+        private async Task<string?> EquipoHojaVidaGenerarAsync(int id)
         {
             var eq = await _context.Equipos
                 .Include(e => e.Marca)

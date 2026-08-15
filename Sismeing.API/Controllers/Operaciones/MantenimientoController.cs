@@ -109,7 +109,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPatch("{id:int}/aprobar")]
-        [Authorize(Policy = "Gestion")]
+        [Authorize(Policy = "Aprobacion")]
         public async Task<ActionResult> Aprobar(int id)
         {
             try

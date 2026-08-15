@@ -77,8 +77,11 @@ builder.Services.AddAuthorization(options =>
 
     // Personal interno (bloquea al Cliente): crear equipos/servicios, subir fotos, mediciones.
     options.AddPolicy("Interno", p => p.RequireRole("Administrador", "Supervisor", "Tecnico", "SuperAdmin"));
-    // Gestion (bloquea Cliente y Tecnico): editar/borrar/aprobar, y todo lo de clientes/contratos.
-    options.AddPolicy("Gestion", p => p.RequireRole("Administrador", "Supervisor", "SuperAdmin"));
+    // Gestion (bloquea Cliente, Tecnico y Supervisor): editar/borrar, clientes y contratos,
+    // y la gestion de cuentas. El Supervisor ya NO entra aqui: trabaja al nivel del Tecnico.
+    options.AddPolicy("Gestion", p => p.RequireRole("Administrador", "SuperAdmin"));
+    // Aprobacion: unica atribucion que separa al Supervisor del Tecnico.
+    options.AddPolicy("Aprobacion", p => p.RequireRole("Administrador", "Supervisor", "SuperAdmin"));
 });
 
 // ── CORS ─────────────────────────────────────────────────────────────────────

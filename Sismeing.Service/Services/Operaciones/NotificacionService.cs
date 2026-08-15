@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Sismeing.Domain.Entities.Operaciones;
+using Sismeing.Domain.Models.Emails;
 using Sismeing.Infrestructura.Persistence;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
@@ -8,13 +10,26 @@ namespace Sismeing.Service.Services.Operaciones
 {
     public class NotificacionService : INotificacionService
     {
+        // Roles con potestad para aprobar informes. Coincide con la politica
+        // "Aprobacion" de Program.cs: si cambia una, debe cambiar la otra.
+        private static readonly string[] RolesAprobadores =
+            { "Supervisor", "Administrador", "SuperAdmin" };
+
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _config;
 
-        public NotificacionService(SupaBaseDBcontext context, IAuditoriaService auditoriaService)
+        public NotificacionService(
+            SupaBaseDBcontext context,
+            IAuditoriaService auditoriaService,
+            IEmailService emailService,
+            IConfiguration config)
         {
             _context = context;
             _auditoriaService = auditoriaService;
+            _emailService = emailService;
+            _config = config;
         }
 
         // Mapea el nombre de un estado del catálogo al tipo de badge del frontend.
@@ -57,6 +72,78 @@ namespace Sismeing.Service.Services.Operaciones
             await _context.SaveChangesAsync();
 
             return item;
+        }
+
+        /// <summary>
+        /// Avisa a los supervisores de que un informe quedo esperando aprobacion,
+        /// por partida doble: notificacion dentro de la aplicacion y correo.
+        /// Nunca lanza: un fallo de SMTP no puede tumbar el guardado del informe.
+        /// </summary>
+        public async Task NotificarPendienteAprobacionAsync(
+            string tipoServicio, string origen, int referenciaId,
+            string numeroInforme, string tecnico, string cliente, string usuarioRegistro)
+        {
+            List<Usuario> aprobadores;
+            try
+            {
+                aprobadores = await _context.Usuarios
+                    .Include(u => u.Rol)
+                    .Where(u => u.Activo && u.Rol != null && RolesAprobadores.Contains(u.Rol.NombreRol))
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error buscando aprobadores: {ex.GetBaseException().Message}");
+                return;
+            }
+
+            var frontendUrl = (_config["FrontendUrl"] ?? "http://localhost:5173").TrimEnd('/');
+            var enlace = $"{frontendUrl}/informes/{origen}/{referenciaId}";
+
+            foreach (var aprobador in aprobadores)
+            {
+                // Cada destinatario va en su propio try: si a uno le falla el correo,
+                // los demas deben recibirlo igual.
+                try
+                {
+                    await CreateAsync(new Notificacion
+                    {
+                        UsuarioId = aprobador.Id,
+                        Titulo = "Informe pendiente de aprobación",
+                        Mensaje = $"El informe {numeroInforme} de {tipoServicio} espera su aprobación.",
+                        Tipo = "pendiente",
+                        Origen = origen,
+                        ReferenciaId = referenciaId,
+                    }, usuarioRegistro);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando aprobacion in-app a {aprobador.Id}: {ex.GetBaseException().Message}");
+                }
+
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(aprobador.CorreoElectronico)) continue;
+
+                    await _emailService.SendAsync(
+                        aprobador.CorreoElectronico,
+                        $"Informe {numeroInforme} pendiente de su aprobación",
+                        "PendienteAprobacion",
+                        new AprobacionPendienteModel
+                        {
+                            Supervisor = $"{aprobador.Nombre} {aprobador.Apellido}".Trim(),
+                            TipoServicio = tipoServicio,
+                            NumeroInforme = numeroInforme,
+                            Tecnico = tecnico,
+                            Cliente = cliente,
+                            Enlace = enlace,
+                        });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error enviando correo de aprobacion a {aprobador.CorreoElectronico}: {ex.GetBaseException().Message}");
+                }
+            }
         }
 
         public async Task<bool> MarcarLeidaAsync(int id, string usuarioModificacion)

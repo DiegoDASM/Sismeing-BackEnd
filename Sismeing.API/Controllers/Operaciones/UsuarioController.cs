@@ -20,6 +20,10 @@ namespace Sismeing.API.Controllers.Operaciones
     [Route("api/[controller]")]
     public class UsuarioController : ControllerBase
     {
+        // Las cuentas con este rol son invisibles para cualquiera que no lo tenga:
+        // un Administrador no puede listarlas, consultarlas ni actuar sobre ellas.
+        private const string RolSuperAdmin = "SuperAdmin";
+
         private readonly IUsuarioService _usuarioService;
         private readonly SupaBaseDBcontext _context;
         private readonly IPasswordHasher<Usuario> _passwordHasher;
@@ -62,14 +66,21 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
-        // Panel de cuentas (admin/supervisor): todos los usuarios, incluso
-        // desactivados, con nombre de rol y de empresa.
+        // Panel de cuentas: todos los usuarios, incluso desactivados, con nombre
+        // de rol y de empresa.
         [HttpGet("todos")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> GetTodos()
         {
             try
             {
                 var data = await _usuarioService.GetTodosAsync();
+
+                // Las cuentas SuperAdmin solo son visibles para otro SuperAdmin.
+                // Para un Administrador simplemente no existen en el panel.
+                if (!User.IsInRole(RolSuperAdmin))
+                    data = data.Where(u => u.Rol?.NombreRol != RolSuperAdmin);
+
                 var dtos = data.Select(x => new UsuarioDto
                 {
                     Id = x.Id,
@@ -94,7 +105,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPatch("{id:int}/activar")]
-        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Activar(int id)
         {
             try
@@ -119,7 +130,14 @@ namespace Sismeing.API.Controllers.Operaciones
                 var data = await _usuarioService.GetByIdAsync(id);
                 if (data == null)
                     return NotFound(new JsonResponse<UsuarioDto>(null, "No encontrado", ResponseStatus.error));
-                
+
+                // Mismo criterio que en el listado: para quien no es SuperAdmin, una
+                // cuenta SuperAdmin responde "No encontrado". Si solo la ocultaramos
+                // del listado, bastaria con adivinar el id para leerla igualmente.
+                if (!User.IsInRole(RolSuperAdmin)
+                    && await _context.Roles.AnyAsync(r => r.Id == data.RolId && r.NombreRol == RolSuperAdmin))
+                    return NotFound(new JsonResponse<UsuarioDto>(null, "No encontrado", ResponseStatus.error));
+
                 var dto = new UsuarioDto{
                     Id = data.Id, Nombre = data.Nombre, Apellido = data.Apellido,
                     Cedula = data.Cedula, CorreoElectronico = data.CorreoElectronico,
@@ -202,7 +220,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost]
-        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Create([FromBody] Usuario item)
         {
             try
@@ -232,7 +250,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Update(int id, [FromBody] Usuario item)
         {
             try
@@ -255,7 +273,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Delete(int id)
         {
             try
@@ -312,7 +330,7 @@ namespace Sismeing.API.Controllers.Operaciones
         }
 
         [HttpPost("invitar")]
-        [Authorize(Roles = "Administrador,Supervisor,SuperAdmin")]
+        [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Invitar([FromBody] InvitarEncargadoDto dto)
         {
             try

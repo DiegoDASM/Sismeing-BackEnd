@@ -254,6 +254,17 @@ namespace Sismeing.Service.Services.Operaciones
                             ReferenciaId = existingItem.Id,
                         }, usuarioModificacion);
                     }
+
+                    // Si el informe quedo esperando aprobacion, ademas se avisa a
+                    // los supervisores: son los unicos que pueden aprobarlo.
+                    if (nombreEstado.Contains("Esperando", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var tecnico = await _context.Usuarios.FindAsync(existingItem.TecnicoId);
+                        await _notificacionService.NotificarPendienteAprobacionAsync(
+                            "mantenimiento", "mantenimiento", existingItem.Id, informe,
+                            tecnico == null ? "" : $"{tecnico.Nombre} {tecnico.Apellido}".Trim(),
+                            "", usuarioModificacion);
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -24,3 +24,6 @@ render-env.txt
 run_output.txt
 build_errors.txt
 build_errors_2.txt
+
+# Salida de 'dotnet publish': artefactos de compilacion, no codigo fuente.
+publish/
