@@ -193,6 +193,21 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        // El claim "rol" es el que evaluan las politicas y los [Authorize(Roles=...)],
+        // con comparacion EXACTA. Se emite desde este mapa fijo por id y no desde la
+        // etiqueta de la tabla rol: asi el SuperAdmin puede renombrar un rol desde su
+        // panel sin romper la seguridad, y una etiqueta escrita distinta (como paso
+        // con 'ADMINISTRADOR' en mayusculas) ya no deja al rol sin sus permisos.
+        private static string RolClaim(Usuario user) => user.RolId switch
+        {
+            30 => "Administrador",
+            31 => "Tecnico",
+            32 => "Supervisor",
+            33 => "Cliente",
+            34 => "SuperAdmin",
+            _ => user.Rol?.NombreRol ?? "",
+        };
+
         private string GenerateJwtToken(Usuario user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
@@ -203,7 +218,7 @@ namespace Sismeing.API.Controllers.Operaciones
             {
                 new Claim("id", user.Id.ToString()),
                 new Claim("email", user.CorreoElectronico),
-                new Claim("rol", user.Rol?.NombreRol ?? ""),
+                new Claim("rol", RolClaim(user)),
                 new Claim("empresa_id", user.EmpresaId.ToString()),
             };
 
