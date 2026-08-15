@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Service;
+using Sismeing.Service.Interfaces.Catalogo;
 using Sismeing.Service.Interfaces.Comunes;
 using Sismeing.Service.Interfaces.Operaciones;
 
@@ -14,11 +15,13 @@ namespace Sismeing.API.Controllers.Operaciones
     {
         private readonly IFoto_InstalacionService _fotoInstalacionService;
         private readonly ICloudinaryService _cloudinaryService;
+        private readonly ITrabajoService _trabajoService;
 
-        public FotoInstalacionController(IFoto_InstalacionService fotoinstalacionservice, ICloudinaryService cloudinaryService)
+        public FotoInstalacionController(IFoto_InstalacionService fotoinstalacionservice, ICloudinaryService cloudinaryService, ITrabajoService trabajoService)
         {
             _fotoInstalacionService = fotoinstalacionservice;
             _cloudinaryService = cloudinaryService;
+            _trabajoService = trabajoService;
         }
 
         [HttpGet]
@@ -139,6 +142,14 @@ namespace Sismeing.API.Controllers.Operaciones
                 var tipoValido = new[] { "inicial", "final" };
                 if (!tipoValido.Contains(tipo.ToLower()))
                     return BadRequest(new JsonResponse<string>(null, "El tipo debe ser 'inicial' o 'final'", ResponseStatus.error));
+
+                // La foto solo puede ligarse a un trabajo vigente de ESTA instalacion.
+                if (trabajoId.HasValue)
+                {
+                    var trabajo = await _trabajoService.GetByIdAsync(trabajoId.Value);
+                    if (trabajo == null || !trabajo.Activo || trabajo.InstalacionId != instalacionId)
+                        return BadRequest(new JsonResponse<string>(null, "El trabajo indicado no pertenece a esta instalación", ResponseStatus.error));
+                }
 
                 var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";

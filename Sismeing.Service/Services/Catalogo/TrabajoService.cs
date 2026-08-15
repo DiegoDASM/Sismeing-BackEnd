@@ -96,8 +96,13 @@ namespace Sismeing.Service.Services.Catalogo
             static string Clave(string? nombre) => (nombre ?? "").Trim().ToLower();
 
             var vivos = new List<Trabajo>();
+            // Nombres ya procesados: un nombre repetido en la lista entrante se
+            // ignora en vez de crear un trabajo duplicado en el servicio.
+            var vistos = new HashSet<string>();
             foreach (var item in items.Where(t => !string.IsNullOrWhiteSpace(t.NombreTrabajo)))
             {
+                if (!vistos.Add(Clave(item.NombreTrabajo))) continue;
+
                 var existente = actuales.FirstOrDefault(a =>
                     !vivos.Contains(a) && Clave(a.NombreTrabajo) == Clave(item.NombreTrabajo));
 
