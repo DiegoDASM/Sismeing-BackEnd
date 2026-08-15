@@ -25,6 +25,11 @@ namespace Sismeing.Domain.Entities.Operaciones
         [Column("tipo")]
         public string? Tipo { get; set; }
 
+        // Trabajo al que corresponde la foto. NULL = foto general del servicio
+        // (asi quedan las anteriores a este cambio, que siguen mostrandose).
+        [Column("trabajo_id")]
+        public int? TrabajoId { get; set; }
+
         [ForeignKey("MantenimientoId")]
         public virtual Mantenimiento? Mantenimiento { get; set; }
     }

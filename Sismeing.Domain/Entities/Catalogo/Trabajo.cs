@@ -24,6 +24,11 @@ namespace Sismeing.Domain.Entities.Catalogo
         [Column("mantenimiento_id")]
         public int? MantenimientoId { get; set; }
 
+        // Excluyente con MantenimientoId. Con ambos en NULL el registro es una
+        // plantilla del catalogo reutilizable, no un trabajo ya realizado.
+        [Column("instalacion_id")]
+        public int? InstalacionId { get; set; }
+
         [ForeignKey("MantenimientoId")]
         public virtual Operaciones.Mantenimiento? Mantenimiento { get; set; }
     }
