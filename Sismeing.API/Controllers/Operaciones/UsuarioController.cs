@@ -390,12 +390,21 @@ namespace Sismeing.API.Controllers.Operaciones
             public string Contrasena { get; set; } = null!;
         }
 
+        // Regla del sistema: el usuario se registra con sus DOS nombres y DOS apellidos.
+        private static bool DosPalabras(string? texto) =>
+            (texto ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).Length == 2;
+
         [HttpPost("completar-registro")]
         [AllowAnonymous]
         public async Task<ActionResult> CompletarRegistro([FromBody] CompletarRegistroDto dto)
         {
             try
             {
+                if (!DosPalabras(dto.Nombre))
+                    return BadRequest(new JsonResponse<bool>(false, "Escriba sus dos nombres (ej: JUAN CARLOS)", ResponseStatus.error));
+                if (!DosPalabras(dto.Apellido))
+                    return BadRequest(new JsonResponse<bool>(false, "Escriba sus dos apellidos (ej: PÉREZ GÓMEZ)", ResponseStatus.error));
+
                 var ok = await _usuarioService.CompletarRegistroAsync(dto.Token, dto.Nombre, dto.Apellido, dto.Cedula, dto.Contrasena);
                 if (!ok)
                     return NotFound(new JsonResponse<bool>(false, "Invitación no válida o ya utilizada", ResponseStatus.error));
