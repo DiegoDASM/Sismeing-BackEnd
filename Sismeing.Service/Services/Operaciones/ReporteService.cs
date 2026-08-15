@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using QRCoder;
+using Sismeing.Domain.Entities.Catalogo;
 using Sismeing.Domain.Entities.Operaciones;
 using Sismeing.Domain.Models.Informes;
 using Sismeing.Infrestructura.Persistence;
@@ -94,13 +95,26 @@ namespace Sismeing.Service.Services.Operaciones
         }
 
         // Ultima modificacion del servicio de origen (o su alta si nunca se edito).
+        // La fecha fuente considera tambien fotos y trabajos del servicio: subir,
+        // reasignar o quitar cualquiera de ellos invalida el informe guardado.
+        // Los Concat se traducen a un UNION ALL: sigue siendo un solo viaje a la base.
         private Task<DateTime?> FechaInstalacionAsync(int id) =>
             _context.Instalaciones.Where(x => x.Id == id)
-                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro))
+            .Concat(_context.FotosInstalacion.Where(f => f.InstalacionId == id)
+                .Select(f => (DateTime?)(f.FechaEliminacion ?? f.FechaModificacion ?? f.FechaRegistro)))
+            .Concat(_context.Trabajos.Where(t => t.InstalacionId == id)
+                .Select(t => (DateTime?)(t.FechaEliminacion ?? t.FechaModificacion ?? t.FechaRegistro)))
+            .MaxAsync();
 
         private Task<DateTime?> FechaMantenimientoAsync(int id) =>
             _context.Mantenimientos.Where(x => x.Id == id)
-                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro)).FirstOrDefaultAsync();
+                .Select(x => (DateTime?)(x.FechaModificacion ?? x.FechaRegistro))
+            .Concat(_context.FotosMantenimiento.Where(f => f.MantenimientoId == id)
+                .Select(f => (DateTime?)(f.FechaEliminacion ?? f.FechaModificacion ?? f.FechaRegistro)))
+            .Concat(_context.Trabajos.Where(t => t.MantenimientoId == id)
+                .Select(t => (DateTime?)(t.FechaEliminacion ?? t.FechaModificacion ?? t.FechaRegistro)))
+            .MaxAsync();
 
         private Task<DateTime?> FechaVisitaAsync(int id) =>
             _context.VisitasTecnicas.Where(x => x.Id == id)
@@ -216,36 +230,101 @@ namespace Sismeing.Service.Services.Operaciones
             return filas;
         }
 
-        // Descripciones de los trabajos realizados de un mantenimiento, en orden.
-        private async Task<List<string>> DescripcionesTrabajosAsync(int mantenimientoId)
+        // ── Fotos y trabajos por servicio ──────────────────────────────────────
+        // Una foto puede pertenecer a un trabajo realizado (trabajo_id); las que
+        // no lo indican (o cuyo trabajo se dio de baja) son "generales".
+        private sealed record FotoServicio(int? TrabajoId, string? Tipo, string Url);
+
+        private async Task<List<FotoServicio>> FotosServicioInstalacionAsync(int id) =>
+            await _context.FotosInstalacion.Where(f => f.InstalacionId == id && f.Activo)
+                .OrderBy(f => f.FechaRegistro)
+                .Select(f => new FotoServicio(f.TrabajoId, f.Tipo, f.Url)).ToListAsync();
+
+        private async Task<List<FotoServicio>> FotosServicioMantenimientoAsync(int id) =>
+            await _context.FotosMantenimiento.Where(f => f.MantenimientoId == id && f.Activo)
+                .OrderBy(f => f.FechaRegistro)
+                .Select(f => new FotoServicio(f.TrabajoId, f.Tipo, f.Url)).ToListAsync();
+
+        private Task<List<Trabajo>> TrabajosDeInstalacionAsync(int id) =>
+            _context.Trabajos.Where(t => t.InstalacionId == id && t.Activo)
+                .OrderBy(t => t.Id).ToListAsync();
+
+        private Task<List<Trabajo>> TrabajosDeMantenimientoAsync(int id) =>
+            _context.Trabajos.Where(t => t.MantenimientoId == id && t.Activo)
+                .OrderBy(t => t.Id).ToListAsync();
+
+        private static List<string> UrlsDe(IEnumerable<FotoServicio> fotos, string tipo) =>
+            fotos.Where(f => f.Tipo == tipo).Select(f => f.Url).ToList();
+
+        private static string DescripcionDe(Trabajo t) =>
+            string.IsNullOrWhiteSpace(t.Descripcion) ? t.NombreTrabajo : $"{t.NombreTrabajo}. {t.Descripcion}";
+
+        private static List<string> Descripciones(IEnumerable<Trabajo> trabajos) =>
+            trabajos.Select(DescripcionDe).ToList();
+
+        /// <summary>
+        /// Filas del formato oficial agrupadas por trabajo: cada trabajo aporta sus
+        /// filas (foto inicial | descripción | foto final) y las fotos generales
+        /// cierran el informe. Los trabajos sin fotos igual salen (una fila con
+        /// "Sin fotografía"), porque el informe debe listar todo lo realizado.
+        /// </summary>
+        private static List<InformeFotoFila> FilasPorTrabajo(List<Trabajo> trabajos, List<FotoServicio> fotos)
         {
-            var trabajos = await _context.Trabajos
-                .Where(t => t.MantenimientoId == mantenimientoId && t.Activo)
-                .OrderBy(t => t.Id)
-                .ToListAsync();
-            return trabajos
-                .Select(t => string.IsNullOrWhiteSpace(t.Descripcion)
-                    ? t.NombreTrabajo
-                    : $"{t.NombreTrabajo}. {t.Descripcion}")
-                .ToList();
+            var filas = new List<InformeFotoFila>();
+            var idsActivos = trabajos.Select(t => t.Id).ToHashSet();
+
+            foreach (var t in trabajos)
+            {
+                var delTrabajo = fotos.Where(f => f.TrabajoId == t.Id).ToList();
+                var ini = UrlsDe(delTrabajo, "inicial");
+                var fin = UrlsDe(delTrabajo, "final");
+                var total = Math.Max(1, Math.Max(ini.Count, fin.Count));
+                for (int j = 0; j < total; j++)
+                    filas.Add(new InformeFotoFila
+                    {
+                        UrlInicial = j < ini.Count ? ini[j] : null,
+                        Descripcion = DescripcionDe(t),
+                        UrlFinal = j < fin.Count ? fin[j] : null,
+                    });
+            }
+
+            var generales = fotos
+                .Where(f => f.TrabajoId == null || !idsActivos.Contains(f.TrabajoId.Value)).ToList();
+            var iniG = UrlsDe(generales, "inicial");
+            var finG = UrlsDe(generales, "final");
+            var totalG = Math.Max(iniG.Count, finG.Count);
+            for (int j = 0; j < totalG; j++)
+                filas.Add(new InformeFotoFila
+                {
+                    UrlInicial = j < iniG.Count ? iniG[j] : null,
+                    Descripcion = trabajos.Count > 0 ? "Fotos generales del servicio" : null,
+                    UrlFinal = j < finG.Count ? finG[j] : null,
+                });
+
+            return filas;
         }
 
-        private async Task<(List<string> ini, List<string> fin)> UrlsInstalacionAsync(int id)
+        /// <summary>
+        /// Grupos de evidencia fotográfica: primero un grupo por trabajo (solo si
+        /// tiene fotos) y después las generales como "Imagen Inicial/Final". Sin
+        /// fotos asignadas a trabajos se comporta igual que siempre.
+        /// </summary>
+        private static List<InformeFotoGrupo> GruposPorTrabajo(List<Trabajo> trabajos, List<FotoServicio> fotos)
         {
-            var ini = await _context.FotosInstalacion.Where(f => f.InstalacionId == id && f.Activo && f.Tipo == "inicial")
-                .OrderBy(f => f.FechaRegistro).Select(f => f.Url).ToListAsync();
-            var fin = await _context.FotosInstalacion.Where(f => f.InstalacionId == id && f.Activo && f.Tipo == "final")
-                .OrderBy(f => f.FechaRegistro).Select(f => f.Url).ToListAsync();
-            return (ini, fin);
-        }
+            var idsActivos = trabajos.Select(t => t.Id).ToHashSet();
+            var grupos = new List<InformeFotoGrupo>();
 
-        private async Task<(List<string> ini, List<string> fin)> UrlsMantenimientoAsync(int id)
-        {
-            var ini = await _context.FotosMantenimiento.Where(f => f.MantenimientoId == id && f.Activo && f.Tipo == "inicial")
-                .OrderBy(f => f.FechaRegistro).Select(f => f.Url).ToListAsync();
-            var fin = await _context.FotosMantenimiento.Where(f => f.MantenimientoId == id && f.Activo && f.Tipo == "final")
-                .OrderBy(f => f.FechaRegistro).Select(f => f.Url).ToListAsync();
-            return (ini, fin);
+            foreach (var t in trabajos)
+            {
+                var urls = fotos.Where(f => f.TrabajoId == t.Id).Select(f => f.Url).ToList();
+                if (urls.Count > 0)
+                    grupos.Add(new InformeFotoGrupo { Titulo = t.NombreTrabajo, Urls = urls });
+            }
+
+            var generales = fotos
+                .Where(f => f.TrabajoId == null || !idsActivos.Contains(f.TrabajoId.Value)).ToList();
+            grupos.AddRange(Grupos(UrlsDe(generales, "inicial"), UrlsDe(generales, "final")));
+            return grupos;
         }
 
         private async Task<(List<string> ini, List<string> fin)> UrlsVisitaAsync(int id)
@@ -255,18 +334,6 @@ namespace Sismeing.Service.Services.Operaciones
             var fin = await _context.FotosVisitaTecnica.Where(f => f.VisitaTecnicaId == id && f.Activo && f.Tipo == "final")
                 .OrderBy(f => f.FechaRegistro).Select(f => f.Url).ToListAsync();
             return (ini, fin);
-        }
-
-        private async Task<List<InformeFotoGrupo>> FotosInstalacionAsync(int id)
-        {
-            var (ini, fin) = await UrlsInstalacionAsync(id);
-            return Grupos(ini, fin);
-        }
-
-        private async Task<List<InformeFotoGrupo>> FotosMantenimientoAsync(int id)
-        {
-            var (ini, fin) = await UrlsMantenimientoAsync(id);
-            return Grupos(ini, fin);
         }
 
         private async Task<List<InformeFotoGrupo>> FotosVisitaAsync(int id)
@@ -355,8 +422,22 @@ namespace Sismeing.Service.Services.Operaciones
                 .Add("Código", i.Equipo?.Codigo)
                 .Add("Potencia", i.Equipo?.Modelo?.Potencia));
 
+            // Trabajos realizados en la instalación (mismo formato que el mantenimiento).
+            var trabajos = await TrabajosDeInstalacionAsync(i.Id);
+            if (trabajos.Count > 0)
+            {
+                var sec = new InformeSeccion { Titulo = "Trabajos Realizados", AnchoCompleto = true };
+                foreach (var t in trabajos)
+                    sec.Campos.Add(new InformeCampo
+                    {
+                        Etiqueta = t.NombreTrabajo,
+                        Valor = string.IsNullOrWhiteSpace(t.Descripcion) ? "Realizado" : t.Descripcion!
+                    });
+                m.Secciones.Add(sec);
+            }
+
             m.Mediciones = await BuildMedicionesAsync(i.Id, i.EquipoId);
-            m.Fotos = await FotosInstalacionAsync(i.Id);
+            m.Fotos = GruposPorTrabajo(trabajos, await FotosServicioInstalacionAsync(i.Id));
             m.SupervisorNombre = NombreCompleto(i.Tecnico);
             (m.QrDataUri, m.QrLeyenda) = GenerarQrEquipo(i.EquipoId, i.Equipo?.Codigo);
 
@@ -386,9 +467,15 @@ namespace Sismeing.Service.Services.Operaciones
                 Descripcion = descripcion,
                 Cabecera = CabeceraEquipo(i.Equipo, i.Area),
             };
-            m.Grupos = await FotosInstalacionAsync(i.Id);
-            var (iniI, finI) = await UrlsInstalacionAsync(i.Id);
-            m.Filas = FilasFotografico(iniI, finI);
+            var trabajos = await TrabajosDeInstalacionAsync(i.Id);
+            var fotos = await FotosServicioInstalacionAsync(i.Id);
+            m.Grupos = GruposPorTrabajo(trabajos, fotos);
+
+            // Con fotos asignadas a trabajos el informe sale agrupado por trabajo;
+            // los informes anteriores conservan el emparejamiento por orden.
+            m.Filas = fotos.Any(f => f.TrabajoId != null)
+                ? FilasPorTrabajo(trabajos, fotos)
+                : FilasFotografico(UrlsDe(fotos, "inicial"), UrlsDe(fotos, "final"), Descripciones(trabajos));
 
             m.SupervisorNombre = NombreCompleto(i.Tecnico);
 
@@ -458,9 +545,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Add("Potencia", equipo?.Modelo?.Potencia));
 
             // Trabajos realizados (catálogo trabajo vinculado a este mantenimiento)
-            var trabajos = await _context.Trabajos
-                .Where(t => t.MantenimientoId == x.Id && t.Activo)
-                .OrderBy(t => t.Id).ToListAsync();
+            var trabajos = await TrabajosDeMantenimientoAsync(x.Id);
             if (trabajos.Count > 0)
             {
                 var sec = new InformeSeccion { Titulo = "Trabajos Realizados", AnchoCompleto = true };
@@ -474,7 +559,7 @@ namespace Sismeing.Service.Services.Operaciones
             }
 
             m.Mediciones = await BuildMedicionesAsync(x.Id, equipo?.Id);
-            m.Fotos = await FotosMantenimientoAsync(x.Id);
+            m.Fotos = GruposPorTrabajo(trabajos, await FotosServicioMantenimientoAsync(x.Id));
             m.SupervisorNombre = NombreCompleto(x.Supervisor) ?? NombreCompleto(x.Tecnico);
             m.EncargadoNombre = NombreCompleto(x.Encargado);
             if (equipo != null)
@@ -520,11 +605,16 @@ namespace Sismeing.Service.Services.Operaciones
                 Observaciones = JoinObs(x.ObservacionInicial, x.ObservacionesFinales),
                 Cabecera = CabeceraEquipo(equipo, area),
             };
-            m.Grupos = await FotosMantenimientoAsync(x.Id);
+            var trabajos = await TrabajosDeMantenimientoAsync(x.Id);
+            var fotos = await FotosServicioMantenimientoAsync(x.Id);
+            m.Grupos = GruposPorTrabajo(trabajos, fotos);
 
-            // Formato oficial: cada foto inicial alineada con su trabajo y su foto final.
-            var (iniM, finM) = await UrlsMantenimientoAsync(x.Id);
-            m.Filas = FilasFotografico(iniM, finM, await DescripcionesTrabajosAsync(x.Id));
+            // Formato oficial: cada foto inicial alineada con su trabajo y su foto
+            // final. Con fotos asignadas a trabajos, agrupadas por trabajo; los
+            // informes anteriores conservan el emparejamiento por orden.
+            m.Filas = fotos.Any(f => f.TrabajoId != null)
+                ? FilasPorTrabajo(trabajos, fotos)
+                : FilasFotografico(UrlsDe(fotos, "inicial"), UrlsDe(fotos, "final"), Descripciones(trabajos));
 
             m.SupervisorNombre = NombreCompleto(x.Supervisor) ?? NombreCompleto(x.Tecnico);
             m.EncargadoNombre = NombreCompleto(x.Encargado);

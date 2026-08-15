@@ -128,7 +128,8 @@ namespace Sismeing.API.Controllers.Operaciones
         [HttpPost("mantenimiento/{mantenimientoId:int}/upload")]
         [Authorize(Policy = "Interno")]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult> UploadFotos(int mantenimientoId, List<IFormFile> files, [FromQuery] string tipo = "inicial")
+        public async Task<ActionResult> UploadFotos(int mantenimientoId, List<IFormFile> files,
+            [FromQuery] string tipo = "inicial", [FromQuery] int? trabajoId = null)
         {
             try
             {
@@ -162,6 +163,8 @@ namespace Sismeing.API.Controllers.Operaciones
                         MantenimientoId = mantenimientoId,
                         Url = url,
                         Tipo = tipo.ToLower(),
+                        // Trabajo al que corresponde la evidencia (null = foto general).
+                        TrabajoId = trabajoId,
                     };
 
                     var created = await _fotoMantenimientoService.CreateAsync(foto, userEmail);

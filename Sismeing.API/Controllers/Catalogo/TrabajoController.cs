@@ -62,6 +62,20 @@ namespace Sismeing.API.Controllers.Catalogo
             }
         }
 
+        [HttpGet("instalacion/{instalacionId:int}")]
+        public async Task<ActionResult> GetByInstalacion(int instalacionId)
+        {
+            try
+            {
+                var data = await _trabajoService.GetByInstalacionAsync(instalacionId);
+                return Ok(new JsonResponse<IEnumerable<Trabajo>>(data));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Trabajo>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpPost]
         [Authorize(Roles = "Administrador,Supervisor,Tecnico,SuperAdmin")]
         public async Task<ActionResult> Create([FromBody] Trabajo item)
@@ -86,6 +100,21 @@ namespace Sismeing.API.Controllers.Catalogo
             {
                 var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
                 var result = await _trabajoService.ReemplazarPorMantenimientoAsync(mantenimientoId, items ?? new List<Trabajo>(), userEmail);
+                return Ok(new JsonResponse<IEnumerable<Trabajo>>(result));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<IEnumerable<Trabajo>>(null, ex.Message, ResponseStatus.error));
+            }
+        }
+
+        [HttpPost("instalacion/{instalacionId:int}")]
+        public async Task<ActionResult> ReemplazarPorInstalacion(int instalacionId, [FromBody] List<Trabajo> items)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var result = await _trabajoService.ReemplazarPorInstalacionAsync(instalacionId, items ?? new List<Trabajo>(), userEmail);
                 return Ok(new JsonResponse<IEnumerable<Trabajo>>(result));
             }
             catch (Exception ex)
