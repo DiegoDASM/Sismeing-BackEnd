@@ -16,7 +16,7 @@ namespace Sismeing.Domain.Entities
         //[Required]
         [StringLength(100)]
         [Column("UsuarioRegistro")]
-        public string? UsuarioRegistro { get; set; } = "SYSTEM";
+        public string? UsuarioRegistro { get; set; }
         [Required]
         [Column("FechaRegistro")]
         public DateTime FechaRegistro { get; set; }

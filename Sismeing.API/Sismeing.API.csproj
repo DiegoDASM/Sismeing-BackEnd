@@ -38,7 +38,7 @@
        configuracion sensible llega por variables de entorno (/etc/sismeing/api.env). -->
   <ItemGroup>
     <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
-    <Content Update="appsettings.example.json" CopyToPublishDirectory="Never" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
 </Project>
