@@ -139,6 +139,28 @@ namespace Sismeing.Service.Services.Operaciones
             return true;
         }
 
+        /// <summary>
+        /// Cambia el rol de un usuario (atribución del SuperAdmin). El nuevo rol
+        /// aplica cuando el usuario vuelva a iniciar sesión: el token vigente
+        /// conserva el claim con el que se emitió.
+        /// </summary>
+        public async Task<bool> CambiarRolAsync(int usuarioId, int rolId, string usuarioModificacion)
+        {
+            var usuario = await _context.Usuarios.FindAsync(usuarioId);
+            if (usuario == null) return false;
+
+            var rol = await _context.Roles.FirstOrDefaultAsync(r => r.Id == rolId && r.Activo)
+                ?? throw new InvalidOperationException("El rol seleccionado no existe o está inactivo.");
+
+            usuario.RolId = rol.Id;
+            usuario.UsuarioModificacion = usuarioModificacion;
+            usuario.FechaModificacion = DateTime.UtcNow;
+            usuario.IpModificacion = _auditoriaService.ObtenerIp();
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<bool> UpdatePerfilAsync(int id, string nombre, string apellido, string? telefono, string userEmail)
         {
             var usuario = await _context.Usuarios.FindAsync(id);

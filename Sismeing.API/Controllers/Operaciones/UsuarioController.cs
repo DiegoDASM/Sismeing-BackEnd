@@ -433,6 +433,36 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        public class CambiarRolDto
+        {
+            public int RolId { get; set; }
+        }
+
+        /// <summary>Cambio del rol de otro usuario: atribución exclusiva del SuperAdmin.</summary>
+        [HttpPut("{id:int}/rol")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<ActionResult> CambiarRol(int id, [FromBody] CambiarRolDto dto)
+        {
+            try
+            {
+                // Cambiarse el propio rol podria dejar a la plataforma sin SuperAdmin.
+                var propioId = int.TryParse(User.FindFirst("id")?.Value, out var uid) ? uid : 0;
+                if (id == propioId)
+                    return BadRequest(new JsonResponse<bool>(false, "No puede cambiar su propio rol", ResponseStatus.error));
+
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var ok = await _usuarioService.CambiarRolAsync(id, dto.RolId, userEmail);
+                if (!ok)
+                    return NotFound(new JsonResponse<bool>(false, "Usuario no encontrado", ResponseStatus.error));
+
+                return Ok(new JsonResponse<bool>(true, "Rol actualizado. Aplicará en el próximo inicio de sesión del usuario."));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
         public class CambiarPasswordDto
         {
             public string PasswordActual { get; set; } = null!;

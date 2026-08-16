@@ -11,6 +11,7 @@ namespace Sismeing.Service.Interfaces.Operaciones
         Task<Usuario> CreateAsync(Usuario item, string usuarioRegistro);
         Task<bool> UpdateAsync(int id, Usuario item, string usuarioModificacion);
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);
+        Task<bool> CambiarRolAsync(int usuarioId, int rolId, string usuarioModificacion);
         Task<bool> UpdatePerfilAsync(int id, string nombre, string apellido, string? telefono, string userEmail);
 
         // ── Invitación de usuario ──
