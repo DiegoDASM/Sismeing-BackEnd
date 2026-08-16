@@ -737,8 +737,7 @@ namespace Sismeing.Service.Services.Operaciones
                 .Add("Modelo", eq.Modelo?.Nombre)
                 .Add("No. de serie", eq.NumeroSerie)
                 .Add("Capacidad", eq.Modelo?.Capacidad)
-                .Add("Potencia", eq.Modelo?.Potencia)
-                .Add("Año de fabricación", eq.Modelo?.AnioFabricacion));
+                .Add("Potencia", eq.Modelo?.Potencia));
 
             // ── Ubicación ──
             m.Secciones.Add(new InformeSeccion { Titulo = "Ubicación" }
