@@ -53,17 +53,19 @@ namespace Sismeing.Domain.Models.Informes
         public bool TieneFinal { get; set; }                     // muestra la columna "Final" solo si hay datos finales
         public List<InformeMedicionFila> Filas { get; set; } = new();
 
-        /// <summary>Agrega la fila solo si hay al menos un valor (inicial o final).</summary>
-        public void Add(string etiqueta, decimal? inicial, decimal? final)
+        /// <summary>Agrega la fila solo si hay al menos un valor (inicial o final).
+        /// Los valores son texto libre: se imprimen tal cual los registró el técnico
+        /// (admite formatos de campo como "220/110").</summary>
+        public void Add(string etiqueta, string? inicial, string? final)
         {
-            if (inicial is null && final is null) return;
+            if (string.IsNullOrWhiteSpace(inicial) && string.IsNullOrWhiteSpace(final)) return;
             Filas.Add(new InformeMedicionFila
             {
                 Etiqueta = etiqueta,
-                Inicial = inicial?.ToString("0.##"),
-                Final = final?.ToString("0.##")
+                Inicial = string.IsNullOrWhiteSpace(inicial) ? null : inicial.Trim(),
+                Final = string.IsNullOrWhiteSpace(final) ? null : final.Trim()
             });
-            if (final is not null) TieneFinal = true;
+            if (!string.IsNullOrWhiteSpace(final)) TieneFinal = true;
         }
     }
 

@@ -15,30 +15,32 @@ namespace Sismeing.Domain.Entities.Operaciones
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Column("id")]
         public int Id { get; set; }
+        // Texto libre a proposito: en campo se registran valores como "220/110"
+        // (voltaje bifasico) o "12/24" (ingreso/salida), que un decimal rechazaba.
         [Column("voltaje")]
-        public decimal? Voltaje { get; set; }
+        public string? Voltaje { get; set; }
         [Column("frecuencia")]
-        public decimal? Frecuencia { get; set; }
+        public string? Frecuencia { get; set; }
         [Column("amp_evaporador_ventilador_rla")]
-        public decimal? AmpEvaporadorVentiladorRla { get; set; }
+        public string? AmpEvaporadorVentiladorRla { get; set; }
         [Column("amp_motor_condensadora_rla")]
-        public decimal? AmpMotorCondensadoraRla { get; set; }
+        public string? AmpMotorCondensadoraRla { get; set; }
         [Column("amp_compresor_rla")]
-        public decimal? AmpCompresorRla { get; set; }
+        public string? AmpCompresorRla { get; set; }
         [Column("presion_succion_psi")]
-        public decimal? PresionSuccionPsi { get; set; }
+        public string? PresionSuccionPsi { get; set; }
         [Column("presion_descarga_psi")]
-        public decimal? PresionDescargaPsi { get; set; }
+        public string? PresionDescargaPsi { get; set; }
         [Column("temp_inicial_final_evap_c")]
-        public decimal? TempInicialFinalEvapC { get; set; }
+        public string? TempInicialFinalEvapC { get; set; }
         [Column("temp_inicial_final_cond_c")]
-        public decimal? TempInicialFinalCondC { get; set; }
+        public string? TempInicialFinalCondC { get; set; }
         [Column("temp_ingreso_salida_agua_c")]
-        public decimal? TempIngresoSalidaAguaC { get; set; }
+        public string? TempIngresoSalidaAguaC { get; set; }
         [Column("temperatura_programada_c")]
-        public decimal? TemperaturaProgramadaC { get; set; }
+        public string? TemperaturaProgramadaC { get; set; }
         [Column("humedad_relativa_prog_pct")]
-        public decimal? HumedadRelativaProgPct { get; set; }
+        public string? HumedadRelativaProgPct { get; set; }
         [Column("equipo_id")]
         public int EquipoId { get; set; }
         [Column("informe_id")]
