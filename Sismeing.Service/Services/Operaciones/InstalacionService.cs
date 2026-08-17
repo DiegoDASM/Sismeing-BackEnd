@@ -135,11 +135,78 @@ namespace Sismeing.Service.Services.Operaciones
             return item;
         }
 
-        // Aprueba la instalación: pasa su estado a "Completado".
+        // Empresa a la que pertenece la instalación (área → empresa), para la
+        // aprobación del cliente.
+        private async Task<int?> EmpresaIdDeLaInstalacionAsync(Instalacion item) =>
+            (await _context.AreasEmpresa.FindAsync(item.AreaId))?.EmpresaId;
+
+        private async Task<string> NombreEstadoActualAsync(int estadoId) =>
+            (await _context.Estados.FindAsync(estadoId))?.NombreEstado ?? "";
+
+        // Primera aprobación (interna: supervisor o administrador). El informe
+        // NO queda completado: pasa a "Esperando Cliente" hasta que el cliente
+        // de la empresa dé la segunda aprobación.
         public async Task<bool> AprobarAsync(int id, string usuario)
         {
             var item = await _context.Instalaciones.FindAsync(id);
             if (item == null) return false;
+
+            var estadoActual = await NombreEstadoActualAsync(item.EstadoId);
+            if (estadoActual.Contains("Complet", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya está completado.");
+            if (estadoActual.Contains("Cliente", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya tiene la aprobación interna; falta la aprobación del cliente.");
+
+            item.EstadoId = await EstadoIdPorNombreAsync("Esperando Cliente");
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+            await _context.SaveChangesAsync();
+
+            var informe = string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme;
+
+            try
+            {
+                foreach (var uid in await TecnicoIdsAsync(item.Id, item.TecnicoId))
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = uid,
+                        Titulo = "Informe con Aprobación Interna",
+                        Mensaje = $"La instalación {informe} fue aprobada por supervisión y espera la aprobación del cliente.",
+                        Tipo = "pendiente",
+                        Origen = "instalacion",
+                        ReferenciaId = item.Id,
+                    }, usuario);
+            }
+            catch (Exception ex) { Console.WriteLine($"Error notificación aprobación instalación: {ex.GetBaseException().Message}"); }
+
+            await _notificacionService.NotificarAprobacionClienteAsync(
+                "instalación", "instalacion", item.Id, informe,
+                await EmpresaIdDeLaInstalacionAsync(item), usuario);
+
+            return true;
+        }
+
+        // Segunda aprobación (el cliente de la empresa): ahora sí queda
+        // "Completado". Un usuario Cliente solo puede aprobar informes de su
+        // propia empresa; administradores pueden hacerlo en su nombre.
+        public async Task<bool> AprobarClienteAsync(int id, string usuario)
+        {
+            var item = await _context.Instalaciones.FindAsync(id);
+            if (item == null) return false;
+
+            var estadoActual = await NombreEstadoActualAsync(item.EstadoId);
+            if (estadoActual.Contains("Complet", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya está completado.");
+            if (!estadoActual.Contains("Cliente", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe aún no tiene la aprobación interna del supervisor o administrador.");
+
+            if (_usuarioContext.EsCliente)
+            {
+                var empresaInforme = await EmpresaIdDeLaInstalacionAsync(item);
+                if (empresaInforme == null || _usuarioContext.EmpresaId != empresaInforme)
+                    throw new InvalidOperationException("Solo el cliente de la empresa del informe puede aprobarlo.");
+            }
 
             item.EstadoId = await EstadoIdPorNombreAsync("Completado");
             item.UsuarioModificacion = usuario;
@@ -154,7 +221,7 @@ namespace Sismeing.Service.Services.Operaciones
                     {
                         UsuarioId = uid,
                         Titulo = "Instalación Completada",
-                        Mensaje = $"La instalación {(string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme)} fue aprobada y marcada como Completada.",
+                        Mensaje = $"La instalación {(string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme)} fue aprobada por el cliente y marcada como Completada.",
                         Tipo = "completado",
                         Origen = "instalacion",
                         ReferenciaId = item.Id,

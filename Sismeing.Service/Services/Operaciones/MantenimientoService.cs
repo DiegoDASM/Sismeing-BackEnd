@@ -274,11 +274,93 @@ namespace Sismeing.Service.Services.Operaciones
             return true;
         }
 
-        // Aprueba el mantenimiento: pasa su estado a "Completado".
+        // Empresa a la que pertenece el mantenimiento (equipo → área → empresa,
+        // con la instalación como respaldo). Para la aprobación del cliente.
+        private async Task<int?> EmpresaIdDelMantenimientoAsync(Mantenimiento item)
+        {
+            int? areaId = null;
+            if (item.EquipoId.HasValue)
+                areaId = (await _context.Equipos.FindAsync(item.EquipoId.Value))?.AreaId;
+            if (areaId == null && item.InstalacionId.HasValue)
+                areaId = (await _context.Instalaciones.FindAsync(item.InstalacionId.Value))?.AreaId;
+            if (areaId == null) return null;
+            return (await _context.AreasEmpresa.FindAsync(areaId.Value))?.EmpresaId;
+        }
+
+        private async Task<string> NombreEstadoActualAsync(int estadoId) =>
+            (await _context.Estados.FindAsync(estadoId))?.NombreEstado ?? "";
+
+        // Primera aprobación (interna: supervisor o administrador). El informe
+        // NO queda completado: pasa a "Esperando Cliente" hasta que el cliente
+        // de la empresa dé la segunda aprobación.
         public async Task<bool> AprobarAsync(int id, string usuario)
         {
             var item = await _context.Mantenimientos.FindAsync(id);
             if (item == null) return false;
+
+            var estadoActual = await NombreEstadoActualAsync(item.EstadoId);
+            if (estadoActual.Contains("Complet", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya está completado.");
+            if (estadoActual.Contains("Cliente", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya tiene la aprobación interna; falta la aprobación del cliente.");
+
+            item.EstadoId = await EstadoIdPorNombreAsync("Esperando Cliente");
+            item.UsuarioModificacion = usuario;
+            item.FechaModificacion = DateTime.UtcNow;
+            item.IpModificacion = _auditoriaService.ObtenerIp();
+            await _context.SaveChangesAsync();
+
+            var informe = string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme;
+
+            try
+            {
+                var destinatarios = new List<int> { item.TecnicoId };
+                destinatarios.AddRange(await ColaboradorIdsAsync(item.Id));
+                if (item.EncargadoId.HasValue)
+                    destinatarios.Add(item.EncargadoId.Value);
+
+                foreach (var usuarioId in destinatarios.Distinct())
+                {
+                    await _notificacionService.CreateAsync(new Notificacion
+                    {
+                        UsuarioId = usuarioId,
+                        Titulo = "Informe con Aprobación Interna",
+                        Mensaje = $"El mantenimiento {informe} fue aprobado por supervisión y espera la aprobación del cliente.",
+                        Tipo = "pendiente",
+                        Origen = "mantenimiento",
+                        ReferenciaId = item.Id,
+                    }, usuario);
+                }
+            }
+            catch (Exception ex) { Console.WriteLine($"Error notificación aprobación mantenimiento: {ex.GetBaseException().Message}"); }
+
+            await _notificacionService.NotificarAprobacionClienteAsync(
+                "mantenimiento", "mantenimiento", item.Id, informe,
+                await EmpresaIdDelMantenimientoAsync(item), usuario);
+
+            return true;
+        }
+
+        // Segunda aprobación (el cliente de la empresa): ahora sí queda
+        // "Completado". Un usuario Cliente solo puede aprobar informes de su
+        // propia empresa; administradores pueden hacerlo en su nombre.
+        public async Task<bool> AprobarClienteAsync(int id, string usuario)
+        {
+            var item = await _context.Mantenimientos.FindAsync(id);
+            if (item == null) return false;
+
+            var estadoActual = await NombreEstadoActualAsync(item.EstadoId);
+            if (estadoActual.Contains("Complet", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe ya está completado.");
+            if (!estadoActual.Contains("Cliente", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("El informe aún no tiene la aprobación interna del supervisor o administrador.");
+
+            if (_usuarioContext.EsCliente)
+            {
+                var empresaInforme = await EmpresaIdDelMantenimientoAsync(item);
+                if (empresaInforme == null || _usuarioContext.EmpresaId != empresaInforme)
+                    throw new InvalidOperationException("Solo el cliente de la empresa del informe puede aprobarlo.");
+            }
 
             item.EstadoId = await EstadoIdPorNombreAsync("Completado");
             item.UsuarioModificacion = usuario;
@@ -293,15 +375,16 @@ namespace Sismeing.Service.Services.Operaciones
                 destinatarios.AddRange(await ColaboradorIdsAsync(item.Id));
                 if (item.EncargadoId.HasValue)
                     destinatarios.Add(item.EncargadoId.Value);
-                destinatarios = destinatarios.Distinct().ToList();
+                if (item.SupervisorId.HasValue)
+                    destinatarios.Add(item.SupervisorId.Value);
 
-                foreach (var usuarioId in destinatarios)
+                foreach (var usuarioId in destinatarios.Distinct())
                 {
                     await _notificacionService.CreateAsync(new Notificacion
                     {
                         UsuarioId = usuarioId,
                         Titulo = "Mantenimiento Completado",
-                        Mensaje = $"El mantenimiento {informe} fue aprobado y marcado como Completado.",
+                        Mensaje = $"El mantenimiento {informe} fue aprobado por el cliente y marcado como Completado.",
                         Tipo = "completado",
                         Origen = "mantenimiento",
                         ReferenciaId = item.Id,

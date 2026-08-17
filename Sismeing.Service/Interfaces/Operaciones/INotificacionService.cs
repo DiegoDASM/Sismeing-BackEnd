@@ -23,6 +23,14 @@ namespace Sismeing.Service.Interfaces.Operaciones
             string tipoServicio, string origen, int referenciaId,
             string numeroInforme, int? supervisorId, string usuarioRegistro);
 
+        /// <summary>
+        /// Avisa a los usuarios Cliente de la empresa que el informe tiene la
+        /// aprobacion interna y espera la suya. No lanza excepciones.
+        /// </summary>
+        Task NotificarAprobacionClienteAsync(
+            string tipoServicio, string origen, int referenciaId,
+            string numeroInforme, int? empresaId, string usuarioRegistro);
+
         Task<bool> MarcarLeidaAsync(int id, string usuarioModificacion);
         Task<int> MarcarTodasLeidasAsync(int usuarioId, string usuarioModificacion);
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);

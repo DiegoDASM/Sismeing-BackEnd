@@ -128,6 +128,28 @@ namespace Sismeing.API.Controllers.Operaciones
             }
         }
 
+        // Segunda aprobación (la del cliente de la empresa). Los administradores
+        // también pueden darla en nombre del cliente; el Supervisor no.
+        [HttpPatch("{id:int}/aprobar-cliente")]
+        [Authorize(Roles = "Cliente,Administrador,SuperAdmin")]
+        public async Task<ActionResult> AprobarCliente(int id)
+        {
+            try
+            {
+                var userEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "SYSTEM";
+                var success = await _instalacionService.AprobarClienteAsync(id, userEmail);
+
+                if (!success)
+                    return NotFound(new JsonResponse<bool>(false, "No encontrado", ResponseStatus.error));
+
+                return Ok(new JsonResponse<bool>(true));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new JsonResponse<bool>(false, ex.Message, ResponseStatus.error));
+            }
+        }
+
         [HttpPatch("{id:int}/activar")]
         [Authorize(Policy = "Gestion")]
         public async Task<ActionResult> Activar(int id)

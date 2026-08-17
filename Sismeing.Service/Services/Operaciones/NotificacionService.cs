@@ -195,6 +195,52 @@ namespace Sismeing.Service.Services.Operaciones
             }
         }
 
+        /// <summary>
+        /// Segunda etapa de la doble aprobacion: avisa a los usuarios Cliente
+        /// de la empresa del informe que este ya tiene la aprobacion interna
+        /// y espera la suya. No lanza excepciones.
+        /// </summary>
+        public async Task NotificarAprobacionClienteAsync(
+            string tipoServicio, string origen, int referenciaId,
+            string numeroInforme, int? empresaId, string usuarioRegistro)
+        {
+            if (!empresaId.HasValue) return;
+
+            List<int> clientes;
+            try
+            {
+                clientes = await _context.Usuarios
+                    .Where(u => u.Activo && u.RolId == 33 && u.EmpresaId == empresaId.Value)
+                    .Select(u => u.Id)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error buscando clientes de la empresa {empresaId}: {ex.GetBaseException().Message}");
+                return;
+            }
+
+            foreach (var usuarioId in clientes)
+            {
+                try
+                {
+                    await CreateAsync(new Notificacion
+                    {
+                        UsuarioId = usuarioId,
+                        Titulo = "Informe pendiente de su aprobación",
+                        Mensaje = $"El informe {numeroInforme} de {tipoServicio} fue aprobado por supervisión y espera su aprobación como cliente.",
+                        Tipo = "pendiente",
+                        Origen = origen,
+                        ReferenciaId = referenciaId,
+                    }, usuarioRegistro);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando al cliente {usuarioId}: {ex.GetBaseException().Message}");
+                }
+            }
+        }
+
         public async Task<bool> MarcarLeidaAsync(int id, string usuarioModificacion)
         {
             var existingItem = await _context.Notificaciones.FindAsync(id);
