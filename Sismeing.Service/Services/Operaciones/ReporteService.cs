@@ -398,7 +398,8 @@ namespace Sismeing.Service.Services.Operaciones
             {
                 Titulo = "INFORME DE INSTALACIÓN",
                 NumeroInforme = Num(i.NumeroInforme, i.Id),
-                Estado = i.Estado?.NombreEstado
+                Estado = i.Estado?.NombreEstado,
+                Observaciones = i.Observaciones
             };
 
             m.Secciones.Add(new InformeSeccion { Titulo = "Datos del Servicio" }
@@ -465,6 +466,7 @@ namespace Sismeing.Service.Services.Operaciones
                 Titulo = "INFORME FOTOGRÁFICO DE INSTALACIÓN",
                 NumeroInforme = Num(i.NumeroInforme, i.Id),
                 Descripcion = descripcion,
+                Observaciones = i.Observaciones,
                 Cabecera = CabeceraEquipo(i.Equipo, i.Area),
             };
             var trabajos = await TrabajosDeInstalacionAsync(i.Id);

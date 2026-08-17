@@ -34,6 +34,8 @@ namespace Sismeing.Domain.Entities.Operaciones
         public int EstadoId { get; set; }
         [Column("numero_informe")]
         public string? NumeroInforme { get; set; }
+        [Column("observaciones")]
+        public string? Observaciones { get; set; }
 
         [ForeignKey("EquipoId")]
         public virtual Equipo? Equipo { get; set; }
