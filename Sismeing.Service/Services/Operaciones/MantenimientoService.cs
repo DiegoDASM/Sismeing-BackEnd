@@ -154,27 +154,12 @@ namespace Sismeing.Service.Services.Operaciones
 
             await SincronizarColaboradoresAsync(item.Id, item.TecnicoId, item.ColaboradorIds);
 
-            // Notificación in-app: el supervisor debe revisar el nuevo servicio
-            try
-            {
-                var informe = string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme;
-                if (item.SupervisorId.HasValue)
-                {
-                    await _notificacionService.CreateAsync(new Notificacion
-                    {
-                        UsuarioId = item.SupervisorId.Value,
-                        Titulo = "Servicio Pendiente de Revisión",
-                        Mensaje = $"El mantenimiento {informe} requiere revisión y aprobación del supervisor.",
-                        Tipo = "pendiente",
-                        Origen = "mantenimiento",
-                        ReferenciaId = item.Id,
-                    }, usuarioRegistro);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creando notificación de mantenimiento: {ex.GetBaseException().Message}");
-            }
+            // Notificación in-app: el supervisor asignado y los administradores
+            // (todos pueden aprobar) deben revisar el nuevo servicio.
+            await _notificacionService.NotificarNuevoServicioAsync(
+                "mantenimiento", "mantenimiento", item.Id,
+                string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme,
+                item.SupervisorId, usuarioRegistro);
 
             if (item.EnviarCorreoRecordatorio)
             {

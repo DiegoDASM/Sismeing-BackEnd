@@ -10,10 +10,11 @@ namespace Sismeing.Service.Services.Operaciones
 {
     public class NotificacionService : INotificacionService
     {
-        // Roles con potestad para aprobar informes. Coincide con la politica
-        // "Aprobacion" de Program.cs: si cambia una, debe cambiar la otra.
-        private static readonly string[] RolesAprobadores =
-            { "Supervisor", "Administrador", "SuperAdmin" };
+        // Roles con potestad para aprobar informes (Administrador, Supervisor,
+        // SuperAdmin). Coincide con la politica "Aprobacion" de Program.cs: si
+        // cambia una, debe cambiar la otra. Se comparan por ID y no por nombre
+        // porque la etiqueta del rol es editable desde el panel de roles.
+        private static readonly int[] RolesAprobadoresIds = { 30, 32, 34 };
 
         private readonly SupaBaseDBcontext _context;
         private readonly IAuditoriaService _auditoriaService;
@@ -87,8 +88,7 @@ namespace Sismeing.Service.Services.Operaciones
             try
             {
                 aprobadores = await _context.Usuarios
-                    .Include(u => u.Rol)
-                    .Where(u => u.Activo && u.Rol != null && RolesAprobadores.Contains(u.Rol.NombreRol))
+                    .Where(u => u.Activo && RolesAprobadoresIds.Contains(u.RolId))
                     .ToListAsync();
             }
             catch (Exception ex)
@@ -142,6 +142,55 @@ namespace Sismeing.Service.Services.Operaciones
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error enviando correo de aprobacion a {aprobador.CorreoElectronico}: {ex.GetBaseException().Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Avisa dentro de la aplicacion que un servicio recien creado espera
+        /// revision: al supervisor asignado y a todo el que puede aprobar
+        /// (administradores y superadmins), menos a quien lo creo. No lanza.
+        /// </summary>
+        public async Task NotificarNuevoServicioAsync(
+            string tipoServicio, string origen, int referenciaId,
+            string numeroInforme, int? supervisorId, string usuarioRegistro)
+        {
+            List<int> destinatarios;
+            try
+            {
+                destinatarios = await _context.Usuarios
+                    .Where(u => u.Activo
+                        && RolesAprobadoresIds.Contains(u.RolId)
+                        && u.CorreoElectronico != usuarioRegistro)
+                    .Select(u => u.Id)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error buscando aprobadores: {ex.GetBaseException().Message}");
+                return;
+            }
+
+            if (supervisorId.HasValue && !destinatarios.Contains(supervisorId.Value))
+                destinatarios.Add(supervisorId.Value);
+
+            foreach (var usuarioId in destinatarios)
+            {
+                try
+                {
+                    await CreateAsync(new Notificacion
+                    {
+                        UsuarioId = usuarioId,
+                        Titulo = "Servicio Pendiente de Revisión",
+                        Mensaje = $"El informe {numeroInforme} de {tipoServicio} requiere revisión y aprobación.",
+                        Tipo = "pendiente",
+                        Origen = origen,
+                        ReferenciaId = referenciaId,
+                    }, usuarioRegistro);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando nuevo servicio a {usuarioId}: {ex.GetBaseException().Message}");
                 }
             }
         }

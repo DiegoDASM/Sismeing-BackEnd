@@ -15,6 +15,14 @@ namespace Sismeing.Service.Interfaces.Operaciones
         Task NotificarPendienteAprobacionAsync(
             string tipoServicio, string origen, int referenciaId,
             string numeroInforme, string tecnico, string cliente, string usuarioRegistro);
+        /// <summary>
+        /// Avisa in-app que un servicio recien creado espera revision: al
+        /// supervisor asignado y a los administradores. No lanza excepciones.
+        /// </summary>
+        Task NotificarNuevoServicioAsync(
+            string tipoServicio, string origen, int referenciaId,
+            string numeroInforme, int? supervisorId, string usuarioRegistro);
+
         Task<bool> MarcarLeidaAsync(int id, string usuarioModificacion);
         Task<int> MarcarTodasLeidasAsync(int usuarioId, string usuarioModificacion);
         Task<bool> DeleteAsync(int id, string usuarioEliminacion);

@@ -125,6 +125,13 @@ namespace Sismeing.Service.Services.Operaciones
 
             await SincronizarColaboradoresAsync(item.Id, item.TecnicoId, item.ColaboradorIds);
 
+            // Notificación in-app: quienes pueden aprobar (supervisores y
+            // administradores) deben enterarse del nuevo servicio.
+            await _notificacionService.NotificarNuevoServicioAsync(
+                "instalación", "instalacion", item.Id,
+                string.IsNullOrEmpty(item.NumeroInforme) ? $"#{item.Id}" : item.NumeroInforme,
+                null, usuarioRegistro);
+
             return item;
         }
 
